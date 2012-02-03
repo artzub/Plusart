@@ -3,14 +3,14 @@
 // uncomment the following to define a path alias
 // Yii::setPathOfAlias('local','path/to/local-folder');
 
-Yii::setPathOfAlias('gapi','./vendors/gapi/src');
+Yii::setPathOfAlias('gapi',dirname(__FILE__).DIRECTORY_SEPARATOR.'../vendors/gapi/src');
 
 // This is the main Web application configuration. Any writable
 // CWebApplication properties can be configured here.
 
 return array(
 	'basePath'=>dirname(__FILE__).DIRECTORY_SEPARATOR.'..',
-	'name'=>'My Web Application',
+	'name'=>'Google Plus Visualizations',
 
 	// preloading 'log' component
 	'preload'=>array('log'),
@@ -22,6 +22,7 @@ return array(
 
         //gapi
         'gapi.*',
+        'application.components.google.*',
 	),
 
 	'modules'=>array(
@@ -37,6 +38,20 @@ return array(
 
 	// application components
 	'components'=>array(
+        'gapis' => array(
+            'class' => 'GoogleApis',
+            'apis' => array(
+                'plus' => array(
+                    'class' => 'GooglePlusWrapper',
+                ),
+            ),
+            'apiConfig' => array(
+                'oauth2_client_id' => '733153716518.apps.googleusercontent.com',
+                'oauth2_client_secret' => 'izUBXQwpZQx3YOxNzR9ALAWc',
+                'oauth2_redirect_uri' => 'https://plusor.net46.net/login',
+                'developer_key' => 'AIzaSyAsyXRlUEgHZC4RNwQ7YrsVonWVEhB-FpY',
+            ),
+        ),
 		'user'=>array(
 			// enable cookie-based authentication
 			'allowAutoLogin'=>true,
@@ -44,11 +59,11 @@ return array(
 		// uncomment the following to enable URLs in path-format
 
 		'urlManager'=>array(
-			'urlFormat'=>'path',
+            'urlFormat'=>'path',
+            'showScriptName'=>false,
+            'appendParams' => false,
 			'rules'=>array(
-				'<controller:\w+>/<id:\d+>'=>'<controller>/view',
-				'<controller:\w+>/<action:\w+>/<id:\d+>'=>'<controller>/<action>',
-				'<controller:\w+>/<action:\w+>'=>'<controller>/<action>',
+                '<action:\w+>'=>'site/<action>',
 			),
 		),
 		/*'db'=>array(

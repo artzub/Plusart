@@ -25,12 +25,21 @@
 		<div id="logo">
             <?php echo CHtml::encode(Yii::app()->name); ?>
             <?php $this->widget('ext.widgets.social.social', array(
-                'networks' => array(
+                    'networks' => array(
                     'googleplusone'=>array(
                         "size"=>"standard",
                         "annotation"=>"inline",
                     ),
             )));?>
+            <?  $person = Yii::app()->gapis->getState("person");
+                if(isset($person)) : ?>
+                <div class="box" style="float: right;">
+                    <a href="<?=$person["url"]?>">
+                        <img src="<?=$person["img"]?>" alt="<?=$person["name"]?>"><br />
+                        <span><?=$person["name"]?></span>
+                    </a>
+                </div>
+            <? endif ?>
         </div>
 	</div><!-- header -->
     <? /*
@@ -63,7 +72,7 @@
         <?$this->widget('ext.widgets.google.analytics.EGoogleAnalyticsWidget',
             array(
                 'account'=>'UA-28343295-3',
-                'domainName'=>Yii::app()->reguest->hostInfo
+                'domainName'=>Yii::app()->request->hostInfo
             )
         );?>
 	</div><!-- footer -->

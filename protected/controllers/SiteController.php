@@ -27,10 +27,23 @@ class SiteController extends Controller
 	 */
 	public function actionIndex()
 	{
-		// renders the view file 'protected/views/site/index.php'
-		// using the default layout 'protected/views/layouts/main.php'
 		$this->render('index');
 	}
+
+    public function init() {
+        if(Yii::app()->gapis->IsAuth() && Yii::app()->gapis->hasApiWrapper("Plus")) {
+            $plus = Yii::app()->gapis->getApiWrapper("Plus");
+            if (isset($plus) && !Yii::app()->gapis->hasState('person')) {
+                $person = $plus->getPerson();
+                !Yii::app()->gapis->setState('person', array(
+                    "name" => $person["displayName"],
+                    "url" => $person["url"],
+                    "img" => $person['image']['url'],
+                    "id" => $person["id"],
+                ));
+            }
+        }
+    }
 
 	/**
 	 * This is the action to handle external exceptions.
@@ -66,30 +79,13 @@ class SiteController extends Controller
 		$this->render('contact',array('model'=>$model));
 	}
 
-	/**
-	 * Displays the login page
-	 */
-	public function actionLogin()
-	{
-		$model=new LoginForm;
-
-		// if it is ajax validation request
-		if(isset($_POST['ajax']) && $_POST['ajax']==='login-form')
-		{
-			echo CActiveForm::validate($model);
-			Yii::app()->end();
-		}
-
-		// collect user input data
-		if(isset($_POST['LoginForm']))
-		{
-			$model->attributes=$_POST['LoginForm'];
-			// validate user input and redirect to the previous page if valid
-			if($model->validate() && $model->login())
-				$this->redirect(Yii::app()->user->returnUrl);
-		}
-		// display the login form
-		$this->render('login',array('model'=>$model));
+	public function actionLogin() {
+        if(Yii::app()->gapis->auth()) {
+            $goto = Yii::app()->session["from"];
+            if(isset($goto)) {
+                $this->redirect($goto);
+            }
+        }
 	}
 
 	/**
@@ -97,7 +93,8 @@ class SiteController extends Controller
 	 */
 	public function actionLogout()
 	{
-		Yii::app()->user->logout();
+        Yii::app()->gapis->clearState('person');
+		Yii::app()->gapis->deauth();
 		$this->redirect(Yii::app()->homeUrl);
 	}
 }
