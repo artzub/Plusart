@@ -48,7 +48,7 @@ return array(
             'apiConfig' => array(
                 'oauth2_client_id' => '733153716518.apps.googleusercontent.com',
                 'oauth2_client_secret' => 'izUBXQwpZQx3YOxNzR9ALAWc',
-                'oauth2_redirect_uri' => 'https://plusor.net46.net/login',
+                'oauth2_redirect_uri' =>'http://plusor.net46.net/index.php/login',
                 'developer_key' => 'AIzaSyAsyXRlUEgHZC4RNwQ7YrsVonWVEhB-FpY',
             ),
         ),
@@ -60,8 +60,8 @@ return array(
 
 		'urlManager'=>array(
             'urlFormat'=>'path',
-            'showScriptName'=>false,
-            'appendParams' => false,
+            //'showScriptName'=>false,
+            //'appendParams' => false,
 			'rules'=>array(
                 '<action:\w+>'=>'site/<action>',
 			),

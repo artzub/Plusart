@@ -2,7 +2,7 @@
 /**
  * @author: ArtZub <artzub@gmail.com>
  */
-class GooglePlusWrapper extends CApplicationComponent implements IGoogleApiWrapper {
+class GooglePlusWrapper implements IGoogleApiWrapper {
 
     /**
      * @var (@link apiPlusService)
@@ -15,14 +15,19 @@ class GooglePlusWrapper extends CApplicationComponent implements IGoogleApiWrapp
     private $name = "Plus";
 
     /**
-     * @var GoogleA the {@link EAuth} application component.
+     * @var GoogleApis the {@link GoogleApis} application component.
      */
     private $pool;
 
     public function init($pool, $option=array()) {
         Yii::import('gapi.contrib.apiPlusService');
-        $this->setPool($pool);
-        $this->plus = new apiPlusService($pool->client);
+        if(isset($pool)) {
+            $this->setPool($pool);
+            $this->plus = new apiPlusService($pool->getClient());
+        }
+        else {
+            throw new CException("CoogleApis.client not initialized");
+        }
     }
 
     public function getApiName() {

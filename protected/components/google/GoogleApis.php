@@ -25,44 +25,42 @@ class GoogleApis extends CApplicationComponent {
      */
     public $apis = array();
 
-    public function init($apiConfig = array()){
+    public function init($config = array()){
         parent::init();
         $this->suffix = "__gapis";
-        $this->setApiConfig($apiConfig);
+        $this->setApiConfig($config);
         $this->client = new apiClient($this->apiConfig);
         $this->client->setApplicationName(Yii::app()->name);
-        $this->getApis();
+        $this->initApis();
+
+        $this->_auth = $this->hasState("access_token");
+        if($this->_auth)
+            $this->client->setAccessToken($this->getState("access_token"));
     }
 
-    /**
-     * For perfomance reasons it uses Yii::app()->cache to store settings array.
-     * @return array apis.
-     */
-    public function getApis() {
-        if (Yii::app()->hasComponent('cache'))
-            $apis = Yii::app()->cache->get('GoogleApis.apis');
+    public function getClient() {
+        return $this->client;
+    }
+
+    public function initApis() {
         if (!isset($apis) || !is_array($apis)) {
             $apis = array();
             foreach ($this->apis as $api => $options) {
-                $class = $this->getApiWrapper($api);
-                $apis[$api] = (object) array(
-                    'name' => $class->getApiName(),
-                );
+                $apis[$api] = $this->getApiWrapper($api);
             }
-            if (Yii::app()->hasComponent('cache'))
-                Yii::app()->cache->set('GoogleApis.apis', $apis);
         }
-        return $apis;
+        $this->apiPool = $apis;
+        return $this->apiPool;
     }
 
     public function hasApiWrapper($api) {
         return isset($this->apis[strtolower($api)]);
     }
 
-    public function getApiWrapper($api) {
+    protected function createApiWrapper($api) {
         $api = strtolower($api);
         if ($this->hasApiWrapper($api)) {
-            $api = $this->services[$api];
+            $api = $this->apis[$api];
 
             $class = $api['class'];
             $point = strrpos($class, '.');
@@ -78,30 +76,45 @@ class GoogleApis extends CApplicationComponent {
         return $wrapper;
     }
 
+    public function getApiWrapper($api) {
+        $api = strtolower($api);
+        if ($this->hasApiWrapper($api)) {
+            $wrapper = $this->apiPool[$api];
+            if(!isset($wrapper)) {
+                $wrapper = $this->createApiWrapper($api);
+                $this->apiPool[$api] = $wrapper;
+            }
+        }
+        return $wrapper;
+    }
+
     public function setRedirect($url) {
         if(isset($url))
             $this->client->setRedirectUri($url);
     }
 
-    protected function setApiConfig($apiConfig = array()) {
-        $this->apiConfig = array_merge($this->apiConfig, $apiConfig);
+    protected function setApiConfig($config = array()) {
+        $this->apiConfig = array_merge($this->apiConfig, $config);
     }
 
-    public function auth() {
+    public function auth($redirect=null) {
         if(!$this->_auth)
             if ($this->getIsInitialized()) {
                 if(isset($_GET['code'])) {
                     $this->client->authenticate();
-                    refreshToken();
-                    header('Location: http://' . $_SERVER['HTTP_HOST'] . $_SERVER['PHP_SELF']);
+                    $this->refreshToken();
+                    Yii::app()->request->redirect($this->apiConfig["oauth2_redirect_uri"]);
+                    //header('Location: ' . $this->apiConfig["http://plusor.net46.net/index.php/login"]);
                 }
-                else
+                else {
+                    $this->setRedirect($redirect);
                     Yii::app()->request->redirect($this->client->createAuthUrl());
+                }
             }
         return $this->_auth;
     }
 
-    protected function refreshToken() {
+    public function refreshToken() {
         $this->setState('access_token', $this->client->getAccessToken());
         $this->_auth = true;
     }
@@ -112,7 +125,7 @@ class GoogleApis extends CApplicationComponent {
         }
     }
 
-    public function IsAuth() {
+    public function isAuth() {
         return $this->_auth;
     }
 

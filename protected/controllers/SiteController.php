@@ -80,11 +80,12 @@ class SiteController extends Controller
 	}
 
 	public function actionLogin() {
-        if(Yii::app()->gapis->auth()) {
+        if(Yii::app()->gapis->auth(/*Yii::app()->createAbsoluteUrl("site/login")*/)) {
             $goto = Yii::app()->session["from"];
             if(isset($goto)) {
                 $this->redirect($goto);
             }
+            $this->redirect(Yii::app()->homeUrl);
         }
 	}
 
