@@ -2,6 +2,9 @@
 /**
  * @author: ArtZub <artzub@gmail.com>
  */
+
+require_once "IGoogleApiWrapper.php";
+
 class GooglePlusWrapper implements IGoogleApiWrapper {
 
     /**
@@ -48,5 +51,49 @@ class GooglePlusWrapper implements IGoogleApiWrapper {
             $this->pool->refreshToken();
         }
         return $person;
+    }
+
+    public function getPersonsByActivity($aid, $collection, $maxResults = 100, $pageToken = null) {
+        if ($this->pool->IsAuth()) {
+            $params = array(
+                'maxResults' => $maxResults,
+                'pageToken' => $pageToken,
+            );
+            $persons = $this->plus->people->listByActivity($aid, $collection, $params);
+            $this->pool->refreshToken();
+        }
+        return $persons;
+    }
+
+    public function getActivities($pid="me", $maxResults = 100, $pageToken = null) {
+        if ($this->pool->IsAuth()) {
+            $params = array(
+                'maxResults' => $maxResults,
+                'pageToken' => $pageToken,
+            );
+            $activities = $this->plus->activities->listActivities($pid, 'public', $params);
+            $this->pool->refreshToken();
+        }
+        return $activities;
+    }
+
+    public function getActivity($aid) {
+        if ($this->pool->IsAuth()) {
+            $activity = $this->plus->activities->getActivity($aid);
+            $this->pool->refreshToken();
+        }
+        return $activity;
+    }
+
+    public function getListComments($aid, $maxResults = 100, $pageToken = null) {
+        if ($this->pool->IsAuth()) {
+            $params = array(
+                'maxResults' => $maxResults,
+                'pageToken' => $pageToken,
+            );
+            $comments = $this->plus->comments->listComments($aid, $params);
+            $this->pool->refreshToken();
+        }
+        return $comments;
     }
 }

@@ -2,6 +2,7 @@
 
 class SiteController extends Controller
 {
+    private $nameGraph = array();
 	/**
 	 * Declares class-based actions.
 	 */
@@ -31,6 +32,12 @@ class SiteController extends Controller
 	}
 
     public function init() {
+        $this->nameGraph = array(
+            'direct' => Yii::t('app', 'Direct graph'),
+            'indirect' => Yii::t('app', 'Indirect graph'),
+            'bubbles' => Yii::t('app', 'Bubbles'),
+        );
+
         if(Yii::app()->gapis->IsAuth() && Yii::app()->gapis->hasApiWrapper("Plus")) {
             $plus = Yii::app()->gapis->getApiWrapper("Plus");
             if (isset($plus) && !Yii::app()->gapis->hasState('person')) {
@@ -78,6 +85,51 @@ class SiteController extends Controller
 		}
 		$this->render('contact',array('model'=>$model));
 	}
+
+    private $data;
+
+    public function actionGraph($type = "") {
+
+        $type = strtolower($type);
+
+        $model=new RunForm();
+        if(isset($_POST['RunForm'])) {
+            $model->attributes=$_POST['RunForm'];
+            if($model->validate())
+            {
+                $data = "";
+                if(Yii::app()->gapis->IsAuth() && Yii::app()->gapis->hasApiWrapper("Plus")) {
+                    $plus = Yii::app()->gapis->getApiWrapper("Plus");
+                    $class = ucfirst($type) . 'GraphBuilder';
+                    $builder = new $class();
+                    $grapher = new Grapher($plus, $class);
+                    $data = json_encode($grapher->getGraph(array(
+                        'pids' => $model->pids,
+                        'maxResults' => $model->maxResults,
+                        'maxComments' => $model->maxComments,
+                        'maxPlusoners' => $model->maxPlusoners,
+                        'maxResharers' => $model->maxResharers,
+                        'depth' => $model->depth,
+                    )));
+                    Yii::app()->user->setFlash('graph',"Complete!!!" . strlen($data));
+                }
+                else {
+                    $data = "Wrapper Plus not found or don't auth";
+                    Yii::app()->user->setFlash('graph',$data);
+                }
+                if(Yii::app()->request->isAjaxRequest){
+                    echo $data;
+                    Yii::app()->end();
+                }
+                //$this->refresh();
+            }
+        }
+        $this->render('graph',array(
+            'model' => $model,
+            'type' => $this->nameGraph[$type],
+            'data' => $data,
+        ));
+    }
 
 	public function actionLogin() {
         if(Yii::app()->gapis->auth(/*Yii::app()->createAbsoluteUrl("site/login")*/)) {

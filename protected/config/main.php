@@ -23,6 +23,7 @@ return array(
         //gapi
         'gapi.*',
         'application.components.google.*',
+        'application.components.graph.*',
 	),
 
 	'modules'=>array(
@@ -60,8 +61,8 @@ return array(
 
 		'urlManager'=>array(
             'urlFormat'=>'path',
-            //'showScriptName'=>false,
-            //'appendParams' => false,
+            'showScriptName'=>false,
+            'appendParams' => false,
 			'rules'=>array(
                 '<action:\w+>'=>'site/<action>',
 			),

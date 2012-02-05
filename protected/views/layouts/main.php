@@ -32,6 +32,7 @@
                     ),
             )));?>
             <?  $person = Yii::app()->gapis->getState("person");
+                Yii::app()->gapis->setRedirectAfter(Yii::app()->request->url);
                 if(isset($person)) : ?>
                 <div class="box" style="float: right;">
                     <a href="<?=$person["url"]?>">

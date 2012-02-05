@@ -1,15 +1,21 @@
 # Do not remove this line, otherwise mod_rewrite rules will stop working
 RewriteBase /
 
-#Options +FollowSymLinks
-#IndexIgnore */*
-#RewriteEngine on
+AddDefaultCharset utf-8
+
+Options +FollowSymLinks
+IndexIgnore */*
+RewriteEngine on
 # if a directory or a file exists, use it directly
 #RewriteCond %{REQUEST_FILENAME} ^.*(images|css|assets).*$ [NC]
 #RewriteCond %{REQUEST_FILENAME} -s [OR]
 #RewriteCond %{REQUEST_FILENAME} -l
 #[OR]
 #RewriteCond %{REQUEST_FILENAME} -d
+
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteRule . index.php
 
 # otherwise forward it to index.php
 #RewriteRule ^.*$ - [NC,L]

@@ -11,6 +11,8 @@ class GoogleApis extends CApplicationComponent {
 
     protected $suffix;
 
+    protected $redirectAfter;
+
     protected $_auth = false;
 
     /**
@@ -33,9 +35,7 @@ class GoogleApis extends CApplicationComponent {
         $this->client->setApplicationName(Yii::app()->name);
         $this->initApis();
 
-        $this->_auth = $this->hasState("access_token");
-        if($this->_auth)
-            $this->client->setAccessToken($this->getState("access_token"));
+        $this->IsAuth();
     }
 
     public function getClient() {
@@ -93,6 +93,11 @@ class GoogleApis extends CApplicationComponent {
             $this->client->setRedirectUri($url);
     }
 
+    public function setRedirectAfter($url) {
+        if(isset($url))
+            $this->redirectAfter = $url;
+    }
+
     protected function setApiConfig($config = array()) {
         $this->apiConfig = array_merge($this->apiConfig, $config);
     }
@@ -103,7 +108,8 @@ class GoogleApis extends CApplicationComponent {
                 if(isset($_GET['code'])) {
                     $this->client->authenticate();
                     $this->refreshToken();
-                    Yii::app()->request->redirect($this->apiConfig["oauth2_redirect_uri"]);
+                    Yii::app()->request->redirect(empty($this->redirectAfter) ?
+                        Yii::app()->homeUrl : $this->redirectAfter);
                     //header('Location: ' . $this->apiConfig["http://plusor.net46.net/index.php/login"]);
                 }
                 else {
@@ -126,6 +132,9 @@ class GoogleApis extends CApplicationComponent {
     }
 
     public function isAuth() {
+        $this->_auth = $this->hasState("access_token");
+        if($this->_auth)
+            $this->client->setAccessToken($this->getState("access_token"));
         return $this->_auth;
     }
 
