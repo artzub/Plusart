@@ -36,6 +36,10 @@ class GoogleApis extends CApplicationComponent {
         $this->initApis();
 
         $this->IsAuth();
+        $this->redirectAfter = Yii::app()->homeUrl;
+        if($this->hasState('r_url_a')) {
+            $this->redirectAfter = $this->getState('r_url_a');
+        }
     }
 
     public function getClient() {
@@ -94,8 +98,10 @@ class GoogleApis extends CApplicationComponent {
     }
 
     public function setRedirectAfter($url) {
-        if(isset($url))
+        if(isset($url)) {
             $this->redirectAfter = $url;
+            $this->setState('r_url_a', $this->redirectAfter);
+        }
     }
 
     protected function setApiConfig($config = array()) {
@@ -108,8 +114,7 @@ class GoogleApis extends CApplicationComponent {
                 if(isset($_GET['code'])) {
                     $this->client->authenticate();
                     $this->refreshToken();
-                    Yii::app()->request->redirect(empty($this->redirectAfter) ?
-                        Yii::app()->homeUrl : $this->redirectAfter);
+                    $this->redirect();
                     //header('Location: ' . $this->apiConfig["http://plusor.net46.net/index.php/login"]);
                 }
                 else {
@@ -118,6 +123,19 @@ class GoogleApis extends CApplicationComponent {
                 }
             }
         return $this->_auth;
+    }
+
+    protected function redirect()
+    {
+        $this->clearState('r_url_a');
+        Yii::app()->request->redirect(
+            //Yii::app()->createAbsoluteUrl(
+                empty($this->redirectAfter) ?
+                    Yii::app()->homeUrl : $this->redirectAfter);
+    }
+
+    public function hasRedirectAfter() {
+        return $this->hasState('r_url_a');
     }
 
     public function refreshToken() {
@@ -129,6 +147,7 @@ class GoogleApis extends CApplicationComponent {
         if($this->hasState("access_token")){
             $this->clearState("access_token");
         }
+        $this->redirect();
     }
 
     public function isAuth() {

@@ -36,11 +36,11 @@ class Jit extends CWidget
 
         $cs = Yii::app()->clientScript;
         if(is_dir($assets)){
-            $cs->registerScriptFile($baseUrl . '/jit-yc.js');
+            $cs->registerScriptFile($baseUrl . '/jit.js');
             $cs->registerCssFile($baseUrl . '/jit.css');
-            if (is_dir($extras)) {
+            /*if (is_dir($extras)) {
                 $cs->registerScriptFile($extrasUrl . '/excanvas.js');
-            }
+            }*/
         }else
             throw new Exception(Yii::t('jit - Error: Couldn\'t find assets folder to publish.'));
     }
@@ -64,6 +64,7 @@ class Jit extends CWidget
                 <div id="log"></div>
             </div>
         */
+
         echo CHtml::openTag('div', $this->htmlOptions);
 
         echo CHtml::openTag('div', array(
@@ -75,9 +76,8 @@ class Jit extends CWidget
             ), "");
 
             echo CHtml::openTag('div', array(
-                'id' => 'jit_central-container',
+                'id' => 'jit_center-container',
             ));
-                echo "ffff";
                 foreach($this->libs as $lib => $params) {
                     $lib = strtolower($lib);
                     if(!isset($this->libsClass[$lib]))
@@ -93,7 +93,6 @@ class Jit extends CWidget
                     );
                     $this->widget($class, $opt);
                 }
-                echo "/ffff";
             echo CHtml::closeTag('div');
 
             echo CHtml::openTag('div', array(

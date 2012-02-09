@@ -2,14 +2,14 @@
   font-size:12px;
 }
 
-span.jit_close {
+span.close {
 	color:#FF5555;
 	cursor:pointer;
 	font-weight:bold;
 	margin-left:3px;
 }
 
-span.jit_name {
+span.name {
   cursor: pointer;
 }
 

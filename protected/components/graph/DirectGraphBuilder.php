@@ -29,6 +29,7 @@ class DirectGraphBuilder extends CComponent implements IGraphBuilder
                     $share['actor']['displayName']
                 );
                 $postNode->addEdge($share);
+                $postNode = $share;
             }
 
             $coms = $activity['comments'];
@@ -69,7 +70,7 @@ class DirectGraphBuilder extends CComponent implements IGraphBuilder
         return self::name;
     }
 
-    private function addNode($id, $name, $color = "#ffffff", $dim=0) {
+    private function addNode($id, $name, $color = "#ff0000", $dim=0) {
         $node = $this->nodes[$this->index[$id]];
         if(!isset($node)) {
             $node = new Node();

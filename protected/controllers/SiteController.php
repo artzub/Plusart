@@ -132,20 +132,26 @@ class SiteController extends Controller
     }
 
 	public function actionLogin() {
+        $this->setRedirect();
         if(Yii::app()->gapis->auth(/*Yii::app()->createAbsoluteUrl("site/login")*/)) {
-            $goto = Yii::app()->session["from"];
-            if(isset($goto)) {
-                $this->redirect($goto);
-            }
             $this->redirect(Yii::app()->homeUrl);
         }
 	}
 
-	/**
+    private function setRedirect()
+    {
+        $url = empty(Yii::app()->request->urlReferrer) ? Yii::app()->homeUrl : Yii::app()->request->urlReferrer;
+        if(!Yii::app()->gapis->hasRedirectAfter()) {
+            Yii::app()->gapis->setRedirectAfter($url);
+        }
+    }
+
+    /**
 	 * Logs out the current user and redirect to homepage.
 	 */
 	public function actionLogout()
 	{
+        $this->setRedirect();
         Yii::app()->gapis->clearState('person');
 		Yii::app()->gapis->deauth();
 		$this->redirect(Yii::app()->homeUrl);

@@ -29,6 +29,11 @@ class ForceDirected extends CInputWidget
             $this->params['htmlOptions']['id'] = 'simple_fd';
         }
 
+        if (!isset($this->params['htmlOptions']['class']) ||
+            empty($this->params['htmlOptions']['class'])) {
+            $this->params['htmlOptions']['class'] = 'jit_infovis';
+        }
+
         if (!isset($this->params['objectName']))
             $this->params['objectName'] = $this->params['htmlOptions']['id'];
 

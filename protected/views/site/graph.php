@@ -26,7 +26,7 @@ $this->breadcrumbs=array(
     function hideBefore(){
         jQuery("#spin-cont").show();
         jQuery("#graph-form").hide();
-        jQuery("#gfdc").hide();
+        //jQuery("#gfdc").hide();
     }
 
     function showAfter() {
@@ -35,9 +35,15 @@ $this->breadcrumbs=array(
     }
 
     function run(html) {
+        showAfter();
         pids = jQuery('#pids').val();
-        setData('pids', html, true);
-        test_fd.run(html);
+        setData(pids, html, true);
+        try {
+            jsondata = JSON.parse(html);
+            test_fd.run(jsondata);
+        } catch (e) {
+            alert(e);
+        }
     }
 </script>
 
@@ -64,7 +70,7 @@ $this->breadcrumbs=array(
     ),
     'htmlOptions' => array(
         'id' => 'gfdc',
-        'style' => 'display:none;'
+        //'style' => 'display:none;'
     ),
 ));?>
     
@@ -111,7 +117,7 @@ $this->breadcrumbs=array(
             'update' => '#output',
             'beforeSend' => 'hideBefore',
             'complete' => 'showAfter',
-            'success' => "function (html) { pids = jQuery('#pids').val(); setData('pids', html, true); test_fd.run(html); }",
+            'success' => "run",
             'error' => 'function(er) { alter(er); }',
         ),
         array(

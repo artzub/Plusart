@@ -23,7 +23,7 @@ class Node extends CComponent
             $edge->nodeFrom = $this->id;
             $edge->nodeTo = $to->id;
             $edge->data = array(
-                '$color' => $this->data['$color']
+                '$color' => "#00ff00"//$this->data['$color']
             );
             $this->adjacencies[] = $edge;
             $this->index[$id] = count($this->adjacencies) - 1;

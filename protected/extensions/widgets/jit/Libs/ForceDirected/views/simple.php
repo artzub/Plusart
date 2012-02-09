@@ -52,16 +52,16 @@
           enable: true,
           //Change cursor style when hovering a node
           onMouseEnter: function() {
-            fd.canvas.getElement().style.cursor = 'move';
+            <?=$objectName?>.fd.canvas.getElement().style.cursor = 'move';
           },
           onMouseLeave: function() {
-            fd.canvas.getElement().style.cursor = '';
+            <?=$objectName?>.fd.canvas.getElement().style.cursor = '';
           },
           //Update node positions when dragged
           onDragMove: function(node, eventInfo, e) {
               var pos = eventInfo.getPos();
               node.pos.setc(pos.x, pos.y);
-              fd.plot();
+              <?=$objectName?>.fd.plot();
           },
           //Implement the same handler for touchscreens
           onTouchMove: function(node, eventInfo, e) {
@@ -130,7 +130,22 @@
         });
       // end
     };
-
-    <?=$objectName?>.fd = init_<?=$htmlOptions['id']?>();
     <?=$objectName?>.run = run_<?=$htmlOptions['id']?>;
+
+    if(document.addEventListener) {   // Mozilla, Opera, Webkit are all happy with this
+        document.addEventListener("DOMContentLoaded", function()
+        {
+            document.removeEventListener( "DOMContentLoaded", arguments.callee, false);
+            <?=$objectName?>.fd = init_<?=$htmlOptions['id']?>();
+        }, false);
+    }
+    else if(document.attachEvent) {   // IE is different...
+        document.attachEvent("onreadystatechange", function()
+        {
+            if(document.readyState === "complete") {
+                document.detachEvent("onreadystatechange", arguments.callee);
+                <?=$objectName?>.fd = init_<?=$htmlOptions['id']?>();
+            }
+        });
+    }
 </script>

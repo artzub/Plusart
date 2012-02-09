@@ -32,13 +32,14 @@
                     ),
             )));?>
             <?  $person = Yii::app()->gapis->getState("person");
-                Yii::app()->gapis->setRedirectAfter(Yii::app()->request->url);
                 if(isset($person)) : ?>
                 <div class="box" style="float: right;">
                     <a href="<?=$person["url"]?>">
                         <img src="<?=$person["img"]?>" alt="<?=$person["name"]?>"><br />
                         <span><?=$person["name"]?></span>
                     </a>
+                    <br />
+                    (<?=CHtml::link('logout', array('logout'))?>)
                 </div>
             <? endif ?>
         </div>
@@ -67,7 +68,7 @@
 	<div class="clear"></div>
 
 	<div id="footer">
-		Copyright &copy; <?php echo date('Y'); ?> by My Company.<br/>
+		Copyright &copy; <?php echo date('Y'); ?> by Artem Zubkov <?=CHtml::link("google+", "http://profiles.google.com/artzub");?>.<br/>
 		All Rights Reserved.<br/>
 		<?php echo Yii::powered(); ?>
         <?$this->widget('ext.widgets.google.analytics.EGoogleAnalyticsWidget',
