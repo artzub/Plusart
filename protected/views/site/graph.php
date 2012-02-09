@@ -7,18 +7,67 @@ $this->breadcrumbs=array(
 );
 ?>
 
+<? if(!Yii::app()->gapis->IsAuth()) : ?>
+    <?=CHtml::link("Connect to Google+", array("site/login"))?>
+<? else : ?>
+
+<script type="text/javascript">
+    var dataMap = {};
+
+    function getData(pids) {
+        return (typeof(dataMap[pids]) == 'undefined' || dataMap[pids] == null) ? {} : dataMap[pids];
+    }
+
+    function setData(pids, json_data, update) {
+        if (typeof(dataMap[pids]) == 'undefined' || dataMap[pids] == null || update)
+            dataMap[pids] = json_data;
+    }
+
+    function hideBefore(){
+        jQuery("#spin-cont").show();
+        jQuery("#graph-form").hide();
+        jQuery("#gfdc").hide();
+    }
+
+    function showAfter() {
+        jQuery("#spin-cont").hide();
+        jQuery("#gfdc").show();
+    }
+
+    function run(html) {
+        pids = jQuery('#pids').val();
+        setData('pids', html, true);
+        test_fd.run(html);
+    }
+</script>
+
 <h1><?=$name?></h1>
 
-<div><?=$data?></div>
+<?$this->widget('ext.widgets.spin.Spin', array(
+    'options' => array(
+        'presets'=>'large',
+        'htmlOptions' => array(
+            'id' => 'spin-cont',
+            'class' => 'box',
+        ),
+    )
+));?>
 
-<?php if(Yii::app()->user->hasFlash('graph')): ?>
-
-<div class="flash-success">
-	<?php echo Yii::app()->user->getFlash('graph'); ?>
-</div>
-
-<?php else: ?>
-
+<?$this->widget('ext.widgets.jit.Jit', array(
+    'libs' => array(
+        'forcedirected' => array(
+            'type' => 'simple',
+            'htmlOptions' => array(
+                'id' => 'test_fd'
+            )
+        ),
+    ),
+    'htmlOptions' => array(
+        'id' => 'gfdc',
+        'style' => 'display:none;'
+    ),
+));?>
+    
 <div class="form">
 
 <?php $form=$this->beginWidget('CActiveForm', array(
@@ -57,18 +106,25 @@ $this->breadcrumbs=array(
 	<?php endif; ?>
 
 	<div class="row buttons">
-        <?/*=CHtml::ajaxSubmitButton('Run', '', array(
+        <?=CHtml::ajaxSubmitButton('Run', '', array(
             'type' => 'POST',
             'update' => '#output',
+            'beforeSend' => 'hideBefore',
+            'complete' => 'showAfter',
+            'success' => "function (html) { pids = jQuery('#pids').val(); setData('pids', html, true); test_fd.run(html); }",
+            'error' => 'function(er) { alter(er); }',
         ),
         array(
-            'type' => 'submit'
-        ));*/?>
-        <?php echo CHtml::submitButton('Submit'); ?>
+            'type' => 'submit',
+            'id' => 'run'
+        ));?>
+        <?php // echo CHtml::submitButton('Submit'); ?>
 	</div>
 
 <?php $this->endWidget(); ?>
 
 </div><!-- form -->
 
-<?php endif; ?>
+<div id="output"><?=$data?></div>
+
+<? endif; ?>
