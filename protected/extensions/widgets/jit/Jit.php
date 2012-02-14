@@ -71,9 +71,9 @@ class Jit extends CWidget
             'id' => 'jit_container',
         ));
 
-            echo CHtml::tag('div', array(
+            /*echo CHtml::tag('div', array(
                 'id' => 'jit_left-container',
-            ), "");
+            ), "");*/
 
             echo CHtml::openTag('div', array(
                 'id' => 'jit_center-container',

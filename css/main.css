@@ -227,3 +227,21 @@ div.search-form
 {
 	background: #80CFFF;
 }
+
+
+.user {
+    font-size: 10pt;
+    overflow: hidden;
+    background: #ccc;
+    padding: 3px;
+    border: 1px solid #666;
+}
+
+.user img {
+    padding: 5px;
+}
+
+.user-info {
+    overflow: hidden;
+    padding: 12px 5px 0 0;
+}

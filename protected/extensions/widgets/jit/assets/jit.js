@@ -14016,7 +14016,7 @@ Layouts.ForceDirected = new Class({
       height: h,
       tstart: w * 0.1,
       nodef: function(x) { return k2 / (x || 1); },
-      edgef: function(x) { return /* x * x / k; */ k * (x - l); }
+      edgef: function(x) { return /*x * x / k;*/  k * (x - l); }
     };
   },
   
@@ -14091,20 +14091,28 @@ Layouts.ForceDirected = new Class({
     //calculate attractive forces
     var T = !!graph.getNode(this.root).visited;
     graph.eachNode(function(node) {
-      node.eachAdjacency(function(adj) {
-        var nodeTo = adj.nodeTo;
-        if(!!nodeTo.visited === T) {
-          $.each(property, function(p) {
-            var vp = node.getPos(p), up = nodeTo.getPos(p);
-            dpos.x = vp.x - up.x;
-            dpos.y = vp.y - up.y;
-            var norm = dpos.norm() || 1;
-            node.disp[p].$add(dpos.$scale(-opt.edgef(norm) / norm));
-            nodeTo.disp[p].$add(dpos.$scale(-1));
-          });
-        }
-      });
-      node.visited = !T;
+		node.eachAdjacency(function(adj) {
+			var nodeTo = adj.nodeTo;
+			if(!!nodeTo.visited === T) {
+				$.each(property, function(p) {
+					var vp = node.getPos(p), up = nodeTo.getPos(p);
+					var vd = (node.data.$dim || 1),
+						ud = (nodeTo.data.$dim || 1);
+										
+					dpos.x = (vp.x - up.x);
+					dpos.y = (vp.y - up.y);
+					
+					var norm = (dpos.norm() || 1);
+					
+					var force = -1;
+					//-((vd*ud) / norm*norm);
+					//opt.edgef(norm) *  / norm
+					node.disp[p].$add(dpos.$scale(opt.edgef(norm - (vd/2)) * force / norm));
+					nodeTo.disp[p].$add(dpos.$scale(force));
+				});
+			}
+		});
+		node.visited = !T;
     });
     //arrange positions to fit the canvas
     var t = opt.t, w2 = opt.width / 2, h2 = opt.height / 2;
@@ -14115,8 +14123,8 @@ Layouts.ForceDirected = new Class({
         var p = u.getPos(p);
         p.$add($C(disp.x * min(Math.abs(disp.x), t) / norm, 
             disp.y * min(Math.abs(disp.y), t) / norm));
-        p.x = min(w2, max(-w2, p.x));
-        p.y = min(h2, max(-h2, p.y));
+        //p.x = min(w2, max(-w2, p.x));
+        //p.y = min(h2, max(-h2, p.y));
       });
     });
   }

@@ -24,27 +24,66 @@ $this->breadcrumbs=array(
     }
 
     function hideBefore(){
+        err = false;
+        //jQuery("#yw0_button").click();
         jQuery("#spin-cont").show();
         jQuery("#graph-form").hide();
-        //jQuery("#gfdc").hide();
+        jQuery("#gfdc").hide();
+    }
+
+    var err = false;
+
+    function error(er) {
+        showAfter();
+        restartBefore();
+        err = true;
+        jQuery("#graph-form_es_").html("<b>" + er.status + "</b><br />" + er.responseText);
+        jQuery("#graph-form_es_").show();
+    }
+
+    function restartBefore() {
+        jQuery("#gfdc").hide();
+        jQuery("#cresult").hide();
+        jQuery("#graph-form_es_").hide();
+        jQuery("#graph-form").show();
+        jQuery("#graph-form_es_").html("");
+        err = false;
     }
 
     function showAfter() {
         jQuery("#spin-cont").hide();
-        jQuery("#gfdc").show();
     }
 
     function run(html) {
         showAfter();
-        pids = jQuery('#pids').val();
+        if (err)
+            return false;
+        jQuery("#cresult").show();
+        pids = jQuery('#RunForm_pids').val();
         setData(pids, html, true);
-        try {
-            jsondata = JSON.parse(html);
-            test_fd.run(jsondata);
-        } catch (e) {
-            alert(e);
-        }
+        setTimeout(function(){
+            try {
+                pids = jQuery('#RunForm_pids').val();
+                html = getData(pids);
+                jsondata = JSON.parse(html);
+                if(jsondata.error)
+                    throw html;
+                jQuery("#gfdc").show();
+                jQuery("#cresult").hide();
+                test_fd.run(jsondata);
+            } catch (e) {
+                er = {'status' : 'Error Data', 'responseText' : e };
+                error(er);
+            }
+        }, 1);
     }
+
+    //jQuery("#yw0_button").click();
+    jQuery(document).ready(function($) {
+        setTimeout(function() {
+            restartBefore();
+        }, 500);
+    });
 </script>
 
 <h1><?=$name?></h1>
@@ -59,21 +98,8 @@ $this->breadcrumbs=array(
     )
 ));?>
 
-<?$this->widget('ext.widgets.jit.Jit', array(
-    'libs' => array(
-        'forcedirected' => array(
-            'type' => 'simple',
-            'htmlOptions' => array(
-                'id' => 'test_fd'
-            )
-        ),
-    ),
-    'htmlOptions' => array(
-        'id' => 'gfdc',
-        //'style' => 'display:none;'
-    ),
-));?>
-    
+<div class="flash-success" id="cresult" style="display: none;">Data loaded.</div>
+
 <div class="form">
 
 <?php $form=$this->beginWidget('CActiveForm', array(
@@ -117,8 +143,8 @@ $this->breadcrumbs=array(
             'update' => '#output',
             'beforeSend' => 'hideBefore',
             'complete' => 'showAfter',
-            'success' => "run",
-            'error' => 'function(er) { alter(er); }',
+            'success' => 'run',
+            'error' => 'error',
         ),
         array(
             'type' => 'submit',
@@ -131,6 +157,19 @@ $this->breadcrumbs=array(
 
 </div><!-- form -->
 
-<div id="output"><?=$data?></div>
+<?$this->widget('ext.widgets.jit.Jit', array(
+    'libs' => array(
+        'forcedirected' => array(
+            'type' => 'simple',
+            'htmlOptions' => array(
+                'id' => 'test_fd'
+            )
+        ),
+    ),
+    'htmlOptions' => array(
+        'id' => 'gfdc',
+        //'style' => 'display:none;'
+    ),
+));?>
 
 <? endif; ?>

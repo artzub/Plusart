@@ -14,7 +14,7 @@
 }
 
 #jit_left-container, #jit_right-container {
-    width:200px;
+    width: 250px;
     color:#686c70;
     text-align: left;
     overflow: auto;
@@ -32,7 +32,7 @@
 }
 
 #jit_right-container {
-    right:0;
+    right: 75px;
     background-image:url('col1.png');
     background-position:center left;
     border-right:1px solid #ddd;
@@ -43,9 +43,8 @@
 }
 
 #jit_center-container {
-    width:600px;
-    left:200px;
-    background-color:#1a1a1a;
+    width: 700px;
+    background-color: #666;
     color:#ccc;
 }
 
@@ -70,7 +69,7 @@
 
 .jit_infovis {
     position:relative;
-    width:600px;
+    width:700px;
     height:600px;
     margin:auto;
     overflow:hidden;
@@ -79,7 +78,7 @@
 /*TOOLTIPS*/
 .tip {
     color: #111;
-    width: 139px;
+    width: 250px;
     background-color: white;
     border:1px solid #ccc;
     -moz-box-shadow:#555 2px 2px 8px;

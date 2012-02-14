@@ -13,6 +13,8 @@
 
 	<link rel="stylesheet" type="text/css" href="<?php echo Yii::app()->request->baseUrl; ?>/css/main.css" />
 	<link rel="stylesheet" type="text/css" href="<?php echo Yii::app()->request->baseUrl; ?>/css/form.css" />
+    <link rel="shortcut icon" type="image/x-icon" href="<?php echo Yii::app()->request->baseUrl; ?>/images/favicon.ico" />
+
 
 	<title><?php echo CHtml::encode($this->pageTitle); ?></title>
 </head>
@@ -21,25 +23,26 @@
 
 <div class="container" id="page">
 
-	<div id="header">
+	<div id="header" style="overflow: hidden;">
 		<div id="logo">
-            <?php echo CHtml::encode(Yii::app()->name); ?>
-            <?php $this->widget('ext.widgets.social.social', array(
-                    'networks' => array(
-                    'googleplusone'=>array(
-                        "size"=>"standard",
-                        "annotation"=>"inline",
-                    ),
-            )));?>
+            <div class="left" style="overflow: hidden;">
+                <?php echo CHtml::encode(Yii::app()->name); ?>
+                <?php $this->widget('ext.widgets.social.social', array(
+                        'networks' => array(
+                        'googleplusone'=>array(
+                            "size"=>"standard",
+                            "annotation"=>"inline",
+                        ),
+                )));?>
+            </div>
             <?  $person = Yii::app()->gapis->getState("person");
                 if(isset($person)) : ?>
-                <div class="box" style="float: right;">
-                    <a href="<?=$person["url"]?>">
-                        <img src="<?=$person["img"]?>" alt="<?=$person["name"]?>"><br />
-                        <span><?=$person["name"]?></span>
-                    </a>
-                    <br />
-                    (<?=CHtml::link('logout', array('logout'))?>)
+                <div class="user right">
+                    <img src="<?=$person["img"]?>" alt="<?=$person["name"]?>" class="left">
+                    <div class="user-info">
+                        <div><a href="<?=$person["url"]?>"><?=$person["name"]?></a></div>
+                        <div>(<?=CHtml::link('logout', array('logout'))?>)</div>
+                    </div>
                 </div>
             <? endif ?>
         </div>
@@ -74,7 +77,8 @@
         <?$this->widget('ext.widgets.google.analytics.EGoogleAnalyticsWidget',
             array(
                 'account'=>'UA-28343295-3',
-                'domainName'=>Yii::app()->request->hostInfo
+                'domainName'=>array(),
+                'searchSystems'=>array(),
             )
         );?>
 	</div><!-- footer -->

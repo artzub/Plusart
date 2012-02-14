@@ -16,12 +16,16 @@ class Node extends CComponent
     private  $index = array();
 
     public function addEdge($to) {
+        if ($this->id == $to->id)
+            return false;
         $id = $this->id . '_' . $to->id;
         $edge = $this->adjacencies[$this->index[$id]];
         if(!isset($edge)) {
             $edge = new Edge();
             $edge->nodeFrom = $this->id;
             $edge->nodeTo = $to->id;
+            $this->data['$dim']++;
+            $to->data['$dim']++;
             $edge->data = array(
                 '$color' => "#00ff00"//$this->data['$color']
             );

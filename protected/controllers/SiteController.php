@@ -94,7 +94,7 @@ class SiteController extends Controller
 
         $model=new RunForm();
         if(isset($_POST['RunForm'])) {
-            $model->attributes=$_POST['RunForm'];
+            $model->setAttributes($_POST['RunForm'], false);
             if($model->validate())
             {
                 $data = "";
@@ -103,6 +103,7 @@ class SiteController extends Controller
                     $class = ucfirst($type) . 'GraphBuilder';
                     $builder = new $class();
                     $grapher = new Grapher($plus, $class);
+
                     $data = json_encode($grapher->getGraph(array(
                         'pids' => $model->pids,
                         'maxResults' => $model->maxResults,
