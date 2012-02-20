@@ -10,6 +10,8 @@ class ForceDirected extends CInputWidget
         $baseUrl = Yii::app()->assetManager->publish($assets);
 
         $cs = Yii::app()->clientScript;
+        $cs->registerCoreScript('jquery');
+
         if(is_dir($assets)) {
             $cs->registerScriptFile($baseUrl . '/'. $this->params['type'] . '.js');
             $cs->registerCssFile($baseUrl . '/'. $this->params['type'] . '.css');

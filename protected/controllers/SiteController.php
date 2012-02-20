@@ -93,8 +93,8 @@ class SiteController extends Controller
         $type = strtolower($type);
 
         $model=new RunForm();
-        if(isset($_POST['RunForm'])) {
-            $model->setAttributes($_POST['RunForm'], false);
+        if(isset($_GET['RunForm'])) {
+            $model->setAttributes($_GET['RunForm'], false);
             if($model->validate())
             {
                 $data = "";

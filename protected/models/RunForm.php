@@ -16,7 +16,7 @@ class RunForm extends CFormModel
 
     public function rules() {
         return array(
-            array('verifyCode', 'captcha', 'allowEmpty'=>!CCaptcha::checkRequirements()),
+            //array('verifyCode', 'captcha', 'allowEmpty'=>!CCaptcha::checkRequirements()),
         );
     }
 

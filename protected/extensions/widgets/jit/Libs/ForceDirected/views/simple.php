@@ -4,7 +4,7 @@
 
     <div class="row">
         <?php echo CHtml::label('Type calc bezier', 'typeEdgeDraw'); ?>
-        <?php echo CHtml::dropDownList('typeEdgeDraw', 'orientation',
+        <?php echo CHtml::dropDownList('typeEdgeDraw', '0',
             array('orientation', 'direction'), array('id' => 'typeEdgeDraw')); ?>
     </div>
 
@@ -15,13 +15,13 @@
 
     <div class="row">
         <?php echo CHtml::label('Type shape node', 'nodeType'); ?>
-        <?php echo CHtml::dropDownList('nodeType', 'circle',
+        <?php echo CHtml::dropDownList('nodeType', '1',
             array('none', 'circle', 'ellipse', 'square', 'rectangle', 'triangle', 'star'), array('id' => 'nodeType')); ?>
     </div>
 
     <div class="row">
         <?php echo CHtml::label('Type edge', 'edgeType'); ?>
-        <?php echo CHtml::dropDownList('edgeType', 'bezier',
+        <?php echo CHtml::dropDownList('edgeType', '1',
             array('none', 'bezier', 'line', 'arrow'), array('id' => 'edgeType')); ?>
     </div>
 
@@ -33,13 +33,13 @@
     <? if(false) : ?>
     <div class="row">
         <?php echo CHtml::label('Type label', 'labelType'); ?>
-        <?php echo CHtml::dropDownList('labelType', 'Native',
+        <?php echo CHtml::dropDownList('labelType', '0',
             array('Native', 'HTML', 'SVG'), array('id' => 'labelType')); ?>
     </div>
     <? endif ?>
 
     <div class="row">
-        <?php echo CHtml::label('Edge dim', 'iterations'); ?>
+        <?php echo CHtml::label('Iterations', 'iterations'); ?>
         <?php echo CHtml::textField('iterations', '1000', array('id' => 'iterations', 'type' => 'number')) ?>
     </div>
 
@@ -73,7 +73,7 @@
         'listEdgeType' : ['none', 'bezier', 'line', 'arrow'],
         'edgeDim' : 50, //use for bezier
         'labelType' : labelType,
-        'listLabelType' : nativeTextSupport ? ['Native' , 'HTML'] : ['HTML'],
+        'listLabelType' : nativeTextSupport ? ['Native', 'HTML', 'SVG'] : ['HTML', 'SVG'],
         'iterations' : 1000,
         'levelDistance' : 260,
         'iter' : 20,
@@ -81,6 +81,42 @@
     }
 
     var <?=$objectName?>;
+
+    $jit.ForceDirected.Plot.NodeTypes.implement({
+        'ellipse': {
+            'render': function(node, canvas){
+                var pos = node.pos.getc(true),
+                    rad = (node.getData('dim') || 0) / 2,
+                    width = node.name.length + rad,
+                    height = rad;
+                this.nodeHelper.ellipse.render('fill', pos, width, height, canvas);
+            },
+            // TODO(nico): be more precise...
+            'contains': function(node, pos){
+                var npos = node.pos.getc(true),
+                    rad = (node.getData('dim') || 0) / 2,
+                    width = node.name.length + rad,
+                    height = rad;
+                return this.nodeHelper.ellipse.contains(npos, pos, width, height);
+            }
+        },
+        'rectangle': {
+            'render': function(node, canvas){
+                var pos = node.pos.getc(true),
+                    rad = (node.getData('dim') || 0) / 2,
+                    width = node.name.length + rad,
+                    height = rad;
+                this.nodeHelper.rectangle.render('fill', pos, width, height, canvas);
+            },
+            'contains': function(node, pos){
+                var npos = node.pos.getc(true),
+                    rad = (node.getData('dim') || 0) / 2,
+                    width = node.name.length + rad,
+                    height = rad;
+                return this.nodeHelper.rectangle.contains(npos, pos, width, height);
+            }
+        }
+    });
 
     $jit.ForceDirected.Plot.EdgeTypes.implement({
         'bezier': {
@@ -99,7 +135,7 @@
                 ctx.beginPath();
                 ctx.moveTo(nodeFrom.x, nodeFrom.y);
 
-                var del = ud / 3;
+                var del = vd / 4;
 
                 orn = "top";
                 if(bx + del < ex) {
@@ -274,15 +310,17 @@
       });
     }
 
+    var jsondata_<?=$htmlOptions['id']?> = {};
     function run_<?=$htmlOptions['id']?>(data) {
-        var jsondata = data;
+        jsondata_<?=$htmlOptions['id']?> = data;
         // load JSON data.
         <?=$objectName?>.fd.loadJSON(jsondata);
-        compute_<?=$objectName?>();
+        compute_<?=$htmlOptions['id']?>();
         // end
     };
 
-    function compute_<?=$objectName?>() {
+    function compute_<?=$htmlOptions['id']?>() {
+        setConfig(configGraph);
         // compute positions incrementally and animate.
         <?=$objectName?>.fd.computeIncremental({
             iter: configGraph.iter,
@@ -293,7 +331,7 @@
                 <?=$objectName?>.fd.animate({
                     modes: ['linear'],
                     transition: $jit.Trans.Elastic.easeOut,
-                    duration: 3000
+                    duration: 1
                 });
             },
             onComplete: function(){
@@ -301,7 +339,7 @@
                 <?=$objectName?>.fd.animate({
                     modes: ['linear'],
                     transition: $jit.Trans.Elastic.easeOut,
-                    duration: 5000
+                    duration: 2500
                 });
             }
         });
@@ -309,20 +347,116 @@
 
     <?=$objectName?>.run = run_<?=$htmlOptions['id']?>;
 
-    if(document.addEventListener) {   // Mozilla, Opera, Webkit are all happy with this
-        document.addEventListener("DOMContentLoaded", function()
-        {
-            document.removeEventListener( "DOMContentLoaded", arguments.callee, false);
-            <?=$objectName?>.fd = init_<?=$htmlOptions['id']?>();
-        }, false);
+    function isNum(sText) {
+       var ValidChars = "0123456789.";
+       var IsNumber = true;
+       var Char;
+
+       for (i = 0; i < sText.length && IsNumber == true; i++) {
+          Char = sText.charAt(i);
+          IsNumber = ValidChars.indexOf(Char) == -1;
+       }
+       return IsNumber;
     }
-    else if(document.attachEvent) {   // IE is different...
-        document.attachEvent("onreadystatechange", function()
-        {
-            if(document.readyState === "complete") {
-                document.detachEvent("onreadystatechange", arguments.callee);
-                <?=$objectName?>.fd = init_<?=$htmlOptions['id']?>();
+
+    function setConfig(config) {
+        var fd = <?=$objectName?>.fd;
+        fd.config.iterations = configGraph.iterations || fd.config.iterations;
+        fd.config.levelDistance = configGraph.levelDistance || fd.config.levelDistance;
+        fd.config.Label.type = configGraph.labelType || fd.config.Label.type;
+        fd.config.Navigation.zooming = configGraph.zooming || fd.config.Navigation.zooming;
+        fd.config.Node.type = configGraph.nodeType || fd.config.Node.type;
+        fd.config.Edge.type = configGraph.edgeType || fd.config.Edge.type;
+        fd.config.Edge.dim = configGraph.edgeDim || fd.config.Edge.dim;
+    }
+
+
+    jQuery(document).ready(function(){
+        <?=$objectName?>.fd = init_<?=$htmlOptions['id']?>();
+
+        jQuery('#typeEdgeDraw').change(function(item) {
+            var temp = jQuery('#typeEdgeDraw option:selected').val();
+            if (temp > -1 && temp < configGraph.listTypeEdgeDraw.length)
+                configGraph.typeEdgeDraw = configGraph.listTypeEdgeDraw[temp];
+            if(<?=$objectName?>)
+                <?=$objectName?>.fd.animate({
+                    modes: ['linear'],
+                    transition: $jit.Trans.Elastic.easeOut,
+                    duration: 2500
+                });
+        });
+
+        jQuery('#edgeType').change(function(item) {
+            var temp = jQuery('#edgeType option:selected').val();
+            if (temp > -1 && temp < configGraph.listEdgeType.length)
+                configGraph.edgeType = configGraph.listEdgeType[temp];
+
+            if(<?=$objectName?>) {
+                <?=$objectName?>.fd.graph.eachNode(function(node) {
+                   node.eachAdjacency(function(a) {
+                       a.Edge.type = configGraph.edgeType;
+                   })
+                });
+
+                <?=$objectName?>.fd.animate({
+                    modes: ['linear'],
+                    transition: $jit.Trans.Elastic.easeOut,
+                    duration: 2500
+                });
             }
         });
-    }
+
+        jQuery('#nodeType').change(function(item) {
+            var temp = jQuery('#nodeType option:selected').val();
+            if (temp > -1 && temp < configGraph.listNodeType.length)
+                configGraph.nodeType = configGraph.listNodeType[temp];
+
+            if(<?=$objectName?>) {
+                <?=$objectName?>.fd.graph.eachNode(function(node) {
+                   node.Node.type = configGraph.nodeType;
+                });
+                <?=$objectName?>.fd.animate({
+                    modes: ['linear'],
+                    transition: $jit.Trans.Elastic.easeOut,
+                    duration: 2500
+                });
+            }
+        })
+
+        jQuery('#refreshGraph').click(function() {
+            var temp = jQuery('#edgeDim').val() || configGraph.edgeDim;
+            if(isNum(temp))
+                configGraph.edgeDim = temp;
+
+            temp = jQuery('#iter').val() || configGraph.iter;
+            if(isNum(temp))
+                configGraph.iter = temp;
+
+            temp = jQuery('#iterations').val() || configGraph.iterations;
+            if(isNum(temp))
+                configGraph.iterations = temp;
+
+            temp = jQuery('#levelDistance').val() || configGraph.levelDistance;
+            if(isNum(temp))
+                configGraph.levelDistance = temp;
+
+            temp = jQuery('#zooming').val() || configGraph.zooming;
+            if(isNum(temp))
+                configGraph.zooming = temp;
+
+            temp = jQuery('#edgeType option:selected').val();
+            if (temp > -1 && temp < configGraph.listEdgeType.length)
+                configGraph.edgeType = configGraph.listEdgeType[temp];
+
+            temp = jQuery('#nodeType option:selected').val();
+            if (temp > -1 && temp < configGraph.listNodeType.length)
+                configGraph.nodeType = configGraph.listNodeType[temp];
+
+            temp = jQuery('#labelType option:selected').val();
+            if (temp > -1 && temp < configGraph.listLabelType.length)
+                configGraph.labelType = configGraph.listLabelType[temp];
+
+            run_<?=$htmlOptions['id']?>(jsondata_<?=$htmlOptions['id']?>);
+        });
+    });
 </script>

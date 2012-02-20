@@ -104,6 +104,7 @@ $this->breadcrumbs=array(
 
 <?php $form=$this->beginWidget('CActiveForm', array(
 	'id'=>'graph-form',
+    'method' => 'get',
 	'enableClientValidation'=>true,
 	'clientOptions'=>array(
 		'validateOnSubmit'=>true,
@@ -124,7 +125,7 @@ $this->breadcrumbs=array(
     	</div>
     <? endforeach ; ?>
 
-	<?php if(CCaptcha::checkRequirements()): ?>
+	<?php if(false && CCaptcha::checkRequirements()): ?>
 	<div class="row">
 		<?php echo $form->labelEx($model,'verifyCode'); ?>
 		<div>
@@ -138,8 +139,8 @@ $this->breadcrumbs=array(
 	<?php endif; ?>
 
 	<div class="row buttons">
-        <?=CHtml::ajaxSubmitButton('Run', '', array(
-            'type' => 'POST',
+        <?=CHtml::ajaxButton('Run', '', array(
+            'type' => 'GET',
             'update' => '#output',
             'beforeSend' => 'hideBefore',
             'complete' => 'showAfter',

@@ -20,71 +20,25 @@ class Grapher extends CComponent
         $this->builder = $graphBuilder;
     }
 
+    private $users = array();
+    private $data = array();
+
     public function getGraph($params) {
         $plus = $this->plus;
 
         $pids = explode(';', $params['pids']);
 
-        $data = array();
-
         if(!isset($params['maxResults']) || $params['maxResults'] < 1)
             $params['maxResults'] = 20;
 
+        if(!isset($params['depth']))
+            $params['depth'] = 0;
+
+        $this->users = array();
+        $this->data = array();
+
         foreach($pids as $pid) {
-            try {
-                $acts = $plus->getActivities($pid, $params['maxResults']);
-
-                if(!isset($acts) || !isset($acts["items"]))
-                    continue;
-
-                foreach($acts["items"] as $act) {
-                    if($act['verb'] == 'share') {
-                        $share = array(
-                            'actor' => $act['object']['actor']
-                        );
-                    }
-
-                    if(isset($act['object'])) {
-                        if($act['object']['replies']['totalItems'] > 0 && $params['maxComments'] > 0) {
-                            try {
-                                $coms = $plus->getListComments($act['id'], $params['maxComments']);
-                            }
-                            catch (Exception $e){
-                                Yii::log(json_encode($e), "error");
-                            }
-                        }
-
-                        if($act['object']['plusoners']['totalItems'] > 0 && $params['maxPlusoners'] > 0) {
-                            try {
-                                $pluss = $plus->getPersonsByActivity($act['id'], 'plusoners', $params['maxPlusoners']);
-                            }
-                            catch (Exception $e){
-                                Yii::log(json_encode($e), "error");
-                            }
-                        }
-
-                        if($act['object']['resharers']['totalItems'] > 0 && $params['maxResharers'] > 0) {
-                            try {
-                                $repost = $plus->getPersonsByActivity($act['id'], 'resharers', $params['maxResharers']);
-                            }
-                            catch (Exception $e){
-                                Yii::log(json_encode($e), "error");
-                            }
-                        }
-                    }
-
-                    $data[] = array(
-                        'post' => $act,
-                        'share' => $share,
-                        'comments' => $coms,
-                        'plus' => $pluss,
-                        'repost' => $repost,
-                    );
-                }
-            }
-            catch(Exception $e) {
-                Yii::log(json_encode($e), "error");
-            }
+            $this->generate($plus, $pid, $params, $params['depth']);
         }
 
         $opt = array(
@@ -92,7 +46,7 @@ class Grapher extends CComponent
         );
 
         try {
-            $nodes = $this->builder->build($data, &$opt);
+            $nodes = $this->builder->build($this->data, &$opt);
             $this->maxEdge = $opt['maxEdge'];
             $this->paintNode($nodes);
         }
@@ -103,37 +57,159 @@ class Grapher extends CComponent
         return $nodes;
     }
 
+    private function generate($plus, $pid, $params, $depth = 0) {
+        Yii::log("BEGIN_GENERATE = " . $pid . "depth = " . $depth, "error");
+        try {
+            $data = &$this->data;
+            if(isset($this->users[$pid]))
+                return;
+            $this->users[$pid] = true;
+            Yii::log("getting feed", "error");
+            $acts = $plus->getActivities($pid, $params['maxResults']);
+
+            if(!isset($acts) || !isset($acts["items"]))
+                return;
+
+            foreach($acts["items"] as $act) {
+
+                Yii::log("unset values", "error");
+                unset($share);
+                unset($coms);
+                unset($pluss);
+                unset($repost);
+
+                if($act['verb'] == 'share') {
+                    Yii::log("have share", "error");
+                    $share = array(
+                        'actor' => $act['object']['actor']
+                    );
+                }
+
+                if(isset($act['object'])) {
+                    if($act['object']['replies']['totalItems'] > 0 && $params['maxComments'] > 0) {
+                        Yii::log("have comment", "error");
+                        try {
+                            $coms = $plus->getListComments($act['id'], $params['maxComments']);
+                        }
+                        catch (Exception $e){
+                            Yii::log(json_encode($e), "error");
+                        }
+                    }
+
+                    if($act['object']['plusoners']['totalItems'] > 0 && $params['maxPlusoners'] > 0) {
+                        Yii::log("have plus", "error");
+                        try {
+                            $pluss = $plus->getPersonsByActivity($act['id'], 'plusoners', $params['maxPlusoners']);
+                        }
+                        catch (Exception $e){
+                            Yii::log(json_encode($e), "error");
+                        }
+                    }
+
+                    if($act['object']['resharers']['totalItems'] > 0 && $params['maxResharers'] > 0) {
+                        Yii::log("have reshare", "error");
+                        try {
+                            $repost = $plus->getPersonsByActivity($act['id'], 'resharers', $params['maxResharers']);
+                        }
+                        catch (Exception $e){
+                            Yii::log(json_encode($e), "error");
+                        }
+                    }
+                }
+
+                $cur = array(
+                    'post' => $act,
+                    'share' => $share,
+                    'comments' => $coms,
+                    'plus' => $pluss,
+                    'repost' => $repost,
+                );
+                $data[] = $cur;
+
+                if ($depth > 0) {
+                    Yii::log("depth = " . $depth, "error");
+                    if(isset($share)) {
+                        try {
+                            $this->generate($plus, $share['actor']['id'], $params, $depth - 1);
+                        }
+                        catch(Exception $e) {
+                            Yii::log(json_encode($e), "error");
+                        }
+                    }
+
+                    if(isset($coms) && isset($coms["items"])) {
+                        foreach($coms["items"] as $com) {
+                            try {
+                                $this->generate($plus, $com['actor']['id'], $params, $depth - 1);
+                            }
+                            catch(Exception $e) {
+                                Yii::log(json_encode($e), "error");
+                            }
+                        }
+                    }
+
+                    $coms = $pluss;
+                    if(isset($coms) && isset($coms["items"])) {
+                        foreach($coms["items"] as $com) {
+                            try {
+                                $this->generate($plus, $com['id'], $params, $depth - 1);
+                            }
+                            catch(Exception $e) {
+                                Yii::log(json_encode($e), "error");
+                            }
+                        }
+                    }
+
+                    $coms = $repost;
+                    if(isset($coms) && isset($coms["items"])) {
+                        foreach($coms["items"] as $com) {
+                            try {
+                                $this->generate($plus, $com['id'], $params, $depth - 1);
+                            }
+                            catch(Exception $e) {
+                                Yii::log(json_encode($e), "error");
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        catch(Exception $e) {
+            Yii::log(json_encode($e), "error");
+        }
+        Yii::log("END_GENERATE = " . $pid, "error");
+    }
+
     public $gradient = array(
         'FFFF78',
         'FDFF34',
+        'FFB050',
         'FF7F50',
         'FF8734',
         'FF3834',
     );
 
     public function paintNode($nodes) {
-        $grad = $this->MultiColorFade($this->gradient, $this->maxEdge+1);
-        //$step = $this->maxEdge / 5;
+        $arr = array();
+        $i = 0;
         foreach($nodes as $node) {
-            $node->data['$color'] = '#'.$grad[$node->data['$dim']];
+            $d = $node->data['$dim'];
+            if(!isset($arr[$d]))
+                $arr[$d] = $i++;
+        }
+        ksort($arr);
+        $i = 0;
+        foreach($arr as $a => $v){
+            $arr[$a] = $i++;
+        }
 
-            /*$count = $node->data['$dim'];
-            if($count <= $step) {
-                $node->data['$color'] = $this->gradient[0];
-            }
-            elseif($count <= $step * 2) {
-                $node->data['$color'] = $this->gradient[1];
-            }
-            elseif($count <= $step * 3) {
-                $node->data['$color'] = $this->gradient[2];
-            }
-            elseif($count <= $step * 4) {
-                $node->data['$color'] = $this->gradient[3];
-            }
-            else {
-                $node->data['$color'] = $this->gradient[4];
-            }
-            //$node->data['$dim'] = count($node->adjacencies);*/
+        $this->maxEdge = count($arr);
+
+        $grad = $this->MultiColorFade($this->gradient, $this->maxEdge);
+        Yii::log(json_encode($arr) . "|" . json_encode($grad), "error");
+        foreach($nodes as $node) {
+            $d = $node->data['$dim'];
+                $node->data['$color'] = '#'.$grad[$arr[$d]];
             foreach($node->adjacencies as $edge) {
                 $edge->data['$color'] = $node->data['$color'];
             }
@@ -160,6 +236,9 @@ class Grapher extends CComponent
             else{
                $stepsforthis = $stepsforpassage;
             }
+
+            if(!$stepsforthis)
+                $stepsforthis = 1;
 
             if($pointer > 0){
                 $fixend = 1;
