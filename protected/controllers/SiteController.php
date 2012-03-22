@@ -93,7 +93,7 @@ class SiteController extends Controller
         $type = strtolower($type);
 
         $model=new RunForm();
-        if(isset($_GET['RunForm'])) {
+        /*if(isset($_GET['RunForm'])) {
             $model->setAttributes($_GET['RunForm'], false);
             if($model->validate())
             {
@@ -124,11 +124,11 @@ class SiteController extends Controller
                 }
                 //$this->refresh();
             }
-        }
+        }*/
         $this->render('graph',array(
             'model' => $model,
             'type' => $this->nameGraph[$type],
-            'data' => $data,
+            //'data' => $data,
         ));
     }
 

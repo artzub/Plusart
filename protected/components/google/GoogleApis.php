@@ -35,7 +35,7 @@ class GoogleApis extends CApplicationComponent {
         $this->client->setApplicationName(Yii::app()->name);
         $this->initApis();
 
-        $this->IsAuth();
+        $this->sign();
         $this->redirectAfter = Yii::app()->homeUrl;
         if($this->hasState('r_url_a')) {
             $this->redirectAfter = $this->getState('r_url_a');
@@ -151,10 +151,32 @@ class GoogleApis extends CApplicationComponent {
     }
 
     public function isAuth() {
-        $this->_auth = $this->hasState("access_token");
-        if($this->_auth)
-            $this->client->setAccessToken($this->getState("access_token"));
         return $this->_auth;
+    }
+
+    public function sign() {
+        $this->_auth = $this->hasState("access_token");
+        if($this->_auth) {
+            $token = $this->getState("access_token");
+            $this->client->setAccessToken($token);
+            $token = json_decode($token, true);
+            $expired = ($token['created'] + ($token['expires_in'] - 30)) < time();
+            if($expired && isset($token['refresh_token'])) {
+                $this->client->refreshToken($token['refresh_token']);
+                $this->refreshToken();
+            }
+        }
+        return $this->_auth;
+    }
+
+    public function getTokenForJS() {
+        $token = array(
+            "acceess_token" => "",
+            "expires_in" => 3600
+        );
+        if ($this->hasState("access_token"))
+            $token = $this->getState("access_token");
+        return print_r($token, true);
     }
 
     public function setState($name, $value) {

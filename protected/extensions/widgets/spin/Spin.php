@@ -1,7 +1,5 @@
 <?php
 /**
- *social.php
- *
  * @author Artem Zubkov  <artzub@gmail.com>
  * @copyright 2011 Artem Zubkov
  * @license Apatche License 2

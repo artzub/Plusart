@@ -27,13 +27,13 @@
 		<div id="logo">
             <div class="left" style="overflow: hidden;">
                 <?php echo CHtml::encode(Yii::app()->name); ?>
-                <?php $this->widget('ext.widgets.social.social', array(
+                <?php/* $this->widget('ext.widgets.social.social', array(
                         'networks' => array(
                         'googleplusone'=>array(
                             "size"=>"standard",
                             "annotation"=>"inline",
                         ),
-                )));?>
+                )));*/?>
             </div>
             <?  $person = Yii::app()->gapis->getState("person");
                 if(isset($person)) : ?>

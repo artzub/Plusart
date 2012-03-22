@@ -1,5 +1,6 @@
+php_flag suhosin.simulation 1
 # Do not remove this line, otherwise mod_rewrite rules will stop working
-RewriteBase /
+#RewriteBase /
 
 AddDefaultCharset utf-8
 
@@ -13,11 +14,11 @@ RewriteEngine on
 #[OR]
 #RewriteCond %{REQUEST_FILENAME} -d
 
+# otherwise forward it to index.php
+#RewriteRule . - [NC,L]
+#RewriteRule . index.php [NC, L]
+
 RewriteCond %{REQUEST_FILENAME} !-f
 RewriteCond %{REQUEST_FILENAME} !-d
 RewriteRule . index.php
-
-# otherwise forward it to index.php
-#RewriteRule ^.*$ - [NC,L]
-#RewriteRule ^.*$ index.php [NC,L]
 

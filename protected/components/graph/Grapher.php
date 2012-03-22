@@ -46,7 +46,7 @@ class Grapher extends CComponent
         );
 
         try {
-            $nodes = $this->builder->build($this->data, &$opt);
+            $nodes = $this->builder->build($this->data, $opt);
             $this->maxEdge = $opt['maxEdge'];
             $this->paintNode($nodes);
         }

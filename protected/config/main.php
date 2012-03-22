@@ -49,7 +49,7 @@ return array(
             'apiConfig' => array(
                 'oauth2_client_id' => '733153716518.apps.googleusercontent.com',
                 'oauth2_client_secret' => 'izUBXQwpZQx3YOxNzR9ALAWc',
-                'oauth2_redirect_uri' =>'http://plusor.net46.net/index.php/login',
+                'oauth2_redirect_uri' => 'http://localhost/login',
                 'developer_key' => 'AIzaSyAsyXRlUEgHZC4RNwQ7YrsVonWVEhB-FpY',
             ),
         ),
@@ -97,11 +97,11 @@ return array(
                     'emails'=>'artzub@gmail.com',
                 ),
 				// uncomment the following to show log messages on web pages
-				/*
+
 				array(
 					'class'=>'CWebLogRoute',
 				),
-				*/
+
 			),
 		),
 	),
