@@ -96,7 +96,7 @@ $this->widget('ext.widgets.google.gapiOAuth2Refresh.gapiOAuth2Refresh');
         if(pos < 0)
             pos = -pos;
 
-        pos = !pos ? '0%' : pos + '%';
+        pos = !pos ? '0%' : pos > 100 ? '100%' : pos + '%';
         jQuery("#probar")[0].style.width = pos;
         jQuery("#probar")[0].textContent = pos;
     };
@@ -114,9 +114,9 @@ $this->widget('ext.widgets.google.gapiOAuth2Refresh.gapiOAuth2Refresh');
             setState('Loading apis ...', 45);
             load_gapi(function() {
                 showAfter();
-                GraphGPlus.onStep = function(pos, max) {
+                GraphGPlus.onStep = function(pos, max, state) {
                     pos = pos * 100 / (max || 100);
-                    setState('Generation ...', pos);
+                    setState(state || 'Generation ...', pos);
                 };
                 GraphGPlus.onComplete = function() {
                     jQuery("#probar-cont").hide();
@@ -217,6 +217,19 @@ $this->widget('ext.widgets.google.gapiOAuth2Refresh.gapiOAuth2Refresh');
         <?
             if($key == 'verifyCode')
                 continue;
+            if($key == 'pids') {
+                echo $form->labelEx($model,$key);
+                echo $form->hiddenField($model, $key);
+                $this->widget('ext.widgets.fcbkcomplete.Fcbkcomplete', array(
+                    'options' => array(
+                        'itemid' => 'select_for_'. $key,
+                        'json_url' => '/search',
+                        'json_data' => "{type:'guser'}", //,q:'%s'
+                        'searchpropname' => 'q',
+                    ),
+                ));
+                continue;
+            }
         ?>
         <div class="row">
     		<?php echo $form->labelEx($model,$key); ?>

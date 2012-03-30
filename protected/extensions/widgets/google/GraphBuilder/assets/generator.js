@@ -34,7 +34,8 @@
                     maxResult : options.maxResult || 20,
                     maxComments : options.maxComments || 20,
                     maxPlusone : options.maxPlusone || 20,
-                    maxReshare : options.maxReshare || 20
+                    maxReshare : options.maxReshare || 20,
+                    depth : options.depth || 0
                 }
             else
                 options = {
@@ -42,7 +43,8 @@
                     maxResult : 20,
                     maxComments : 20,
                     maxPlusone : 20,
-                    maxReshare : 20
+                    maxReshare : 20,
+                    depth : 0
                 }
 
             var TypeActions = {
@@ -64,13 +66,31 @@
 
             var step = 0;
             var nextPage = null;
-            var pids = options.pids.split(';');
+
+            var addPid = function(pid, depth) {
+                return {pid : pid, depth : depth || 0};
+            }
+
+            var pids = [];
+            var pidst = options.pids.split(';');
+            for(var pidin in pidst){
+                pidin = pidst[pidin].replace(/\s/g, "");
+                if (pidin.length > 0)
+                    pids.push(addPid(pidin, options.depth));
+            }
+            var curPid = addPid("me");
+            var completePids = {};
+
             var lastPid = 0;
             var countCompleteStep = 0;
             var posts = null;
             var postId = null;
             var index = 0;
             var curStep = 0;
+
+            var getState = function() {
+                return "Generation (" + lastPid + " of " + pids.length + ") ...";
+            }
 
             var continueWork = function() {
                 if (result = (!posts || index >= posts.length)) {
@@ -93,6 +113,11 @@
                     share = {
                         actor : post.object.actor
                     };
+                    if (curPid.depth > 0
+                        &&  isExists(share.actor)
+                        &&  !isExists(completePids[share.actor.id])) {
+                        pids.push(addPid(share.actor.id, curPid.depth - 1))
+                    }
                 }
 
                 dataIndexes[postId] = {
@@ -120,6 +145,15 @@
                     "activityId":postId
                 }).execute(function(resp) {
                     dataIndexes[postId].comments = resp.items;
+                    if (curPid.depth > 0) {
+                        for(var item in resp.items) {
+                            item = resp.items[item];
+                            if (isExists(item.actor)
+                                &&  !isExists(completePids[item.actor.id])) {
+                                pids.push(addPid(item.actor.id, curPid.depth - 1))
+                            }
+                        }
+                    }
                     stillWorking.sub = false;
                 });
                 operation = TypeActions.plusone;
@@ -137,6 +171,15 @@
                 }).execute(function(resp) {
                     var ext = operation == TypeActions.reshare ? "plusoners" : "sharers";
                     dataIndexes[postId][ext] = resp.items;
+                    if (curPid.depth > 0) {
+                        for(var item in resp.items) {
+                            item = resp.items[item];
+                            if (isExists(item)
+                                &&  !isExists(completePids[item.id])) {
+                                pids.push(addPid(item.id, curPid.depth - 1))
+                            }
+                        }
+                    }
                     if(ext == "sharers")
                         index++;
                     stillWorking.sub = false;
@@ -154,14 +197,13 @@
                     if(isExists(obj.onStep))
                         obj.onStep(++curStep, options.maxResult);
 
-                    if(isExists(obj.onGenerate)) {
-                        var dataResult = dataIndexes;
-                        if (isExists(obj.DataBuilder)) {
-                            obj.DataBuilder.dataGenerator(dataResult);
-                            dataResult = obj.DataBuilder.dataResult;
-                        }
-                        obj.onGenerate(dataResult);
+                    var dataResult = dataIndexes;
+                    if (isExists(obj.DataBuilder)) {
+                        obj.DataBuilder.dataGenerator(dataResult);
+                        dataResult = obj.DataBuilder.dataResult;
                     }
+                    if(false && isExists(obj.onGenerate))
+                        obj.onGenerate(dataResult);
 
                     stillWorking.main = false;
                     return;
@@ -177,7 +219,7 @@
                 switch(operation){
                     case TypeActions.post:
                         if(isExists(obj.onStep))
-                            obj.onStep(curStep++, options.maxResult);
+                            obj.onStep(curStep++, options.maxResult, getState());
                         parsePost();
                         break;
                     case TypeActions.comment:
@@ -207,11 +249,11 @@
             function doGenerate(resp){
                 posts = null;
                 nextPage = resp.nextPageToken;
-                if (!nextPage) {
+                if (!isExists(nextPage)) {
                     step = 0;
                 }
 
-                if (!resp.items) {
+                if (!isExists(resp.items)) {
                     step = 0;
                     stillWorking.main = false;
                     return;
@@ -221,7 +263,7 @@
                 switcher();
             }
 
-            function run(pid) {
+            function run() {
 
                 if (stillWorking.main) {
                     setTimeout(run, 500);
@@ -246,14 +288,14 @@
 
                 var request = gapi.client.plus.activities.list({
                     'fields' : 'nextPageToken,items(actor(displayName,id,image,url),id,object(actor,id,plusoners,replies,resharers),verb)',
-                    'userId' : pid,
+                    'userId' : curPid.pid,
                     'collection' : 'public',
                     'maxResults' : nextCount,
                     'pageToken' : nextPage
                 }).execute(doGenerate);
 
                 stillWorking.main = true;
-                run(pid);
+                run();
             }
 
             var loopPids = function() {
@@ -264,18 +306,30 @@
                 if (lastPid > pids.length - 1) {
                     if(isExists(obj.onComplete))
                         obj.onComplete();
+                    var dataResult = dataIndexes;
+                    if (isExists(obj.DataBuilder)) {
+                        dataResult = obj.DataBuilder.dataResult;
+                    }
+                    if(isExists(obj.onGenerate))
+                        obj.onGenerate(dataResult);
                     return false;
                 }
-                var pid = pids[lastPid++];
+                curPid = pids[lastPid++];
 
-                if (typeof(pid) == "undefined" || pid == null || pid.length < 1){
+
+                if(isExists(obj.onStep))
+                    obj.onStep(curStep, options.maxResult, getState());
+
+                if (!isExists(curPid) || !isExists(curPid.pid) ||
+                    curPid.pid.length < 1 || isExists(completePids[curPid.pid])){
                     loopPids();
                     return false;
                 }
 
                 step = options.maxResult / 100;
                 nextPage = null;
-                run(pid.replace(/\s/g, ""));
+                completePids[curPid.pid] = true;
+                run();
             }
 
             if(isExists(obj.onBeforeGenerate))

@@ -39,6 +39,11 @@ return array(
 
 	// application components
 	'components'=>array(
+        'cache'=>array(
+            'class'=>'system.caching.CMemCache',
+            //'useMemcached' => true,
+        ),
+
         'gapis' => array(
             'class' => 'GoogleApis',
             'apis' => array(
@@ -48,7 +53,7 @@ return array(
             ),
             'apiConfig' => array(
                 'oauth2_client_id' => '733153716518.apps.googleusercontent.com',
-                'oauth2_client_secret' => 'izUBXQwpZQx3YOxNzR9ALAWc',
+                'oauth2_client_secret' => 'StVK3rCxaMb5jBmRQcnnLDnN',
                 'oauth2_redirect_uri' => 'http://localhost/login',
                 'developer_key' => 'AIzaSyAsyXRlUEgHZC4RNwQ7YrsVonWVEhB-FpY',
             ),

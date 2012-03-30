@@ -74,7 +74,7 @@
         'edgeDim' : 50, //use for bezier
         'labelType' : labelType,
         'listLabelType' : nativeTextSupport ? ['Native', 'HTML', 'SVG'] : ['HTML', 'SVG'],
-        'iterations' : 1000,
+        'iterations' : 200,
         'levelDistance' : 260,
         'iter' : 20,
         'stepAnim' : true

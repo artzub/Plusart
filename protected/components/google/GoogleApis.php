@@ -170,12 +170,12 @@ class GoogleApis extends CApplicationComponent {
     }
 
     public function getTokenForJS() {
-        $token = array(
-            "acceess_token" => "",
-            "expires_in" => 3600
-        );
-        if ($this->hasState("access_token"))
-            $token = $this->getState("access_token");
+        $token = '{
+            "acceess_token" : "",
+            "expires_in" : 3600
+        }';
+        if ($this->isAuth())
+            $token = $this->client->getAccessToken();
         return print_r($token, true);
     }
 

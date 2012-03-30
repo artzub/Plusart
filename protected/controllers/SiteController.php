@@ -157,4 +157,59 @@ class SiteController extends Controller
 		Yii::app()->gapis->deauth();
 		$this->redirect(Yii::app()->homeUrl);
 	}
+
+    public function actionSearch($type = "", $q=""){
+        switch($type){
+            case "guser" :
+
+                if (!isset($q) || empty($q)) {
+                    echo "[]";
+                    Yii::app()->end();
+                }
+
+                $hash = md5($q);
+
+                $json = Yii::app()->cache->get("search_" . $hash);
+
+                if($json!==false) {
+                    echo $json;
+                    Yii::app()->end();
+                }
+
+                $values = array (
+                    'ds'=>'es_profiles',
+                    'client'=>'es-sharebox',
+                    'partnerid'=>'es-profiles',
+                    'tok'=>'SF5qnwOLuBty9aPAcKMtYg',
+                    'authuser'=>0,
+                    'xhr'=>'t',
+                    'expid'=>'2b582408',
+                    'gs_nf'=>1,
+                    'q'=>$q
+                );
+                $ch = curl_init("https://plus.google.com/complete/search?" . http_build_query($values));
+                curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+                curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
+                curl_setopt($ch, CURLOPT_HEADER, false);
+                curl_setopt($ch, CURLOPT_HTTPGET, true);
+                curl_setopt($ch, CURLOPT_USERAGENT, $_SERVER['HTTP_USER_AGENT']);
+                curl_setopt($ch, CURLOPT_HTTPHEADER,
+                    array('Content-type: application/json'));
+                $json = curl_exec($ch);
+                $code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+                curl_close($ch);
+                if ($code != 200) {
+                    echo "";
+                    Yii::app()->end();
+                }
+
+                $json = preg_replace('/^\[.*?\[/', '', $json);
+                $json = preg_replace('/\],\{"k".*/', '', $json);
+                $json = '[' . preg_replace('/\["(.*?").*?g:"(.*?").*?\]\]/', '{"value":"$2, "caption":"$1}', $json) . ']';
+                echo $json;
+                echo Yii::app()->cache->set("search_" . $hash, $json, 3600) ? "work" : "not work";
+                Yii::app()->end();
+                break;
+        }
+    }
 }

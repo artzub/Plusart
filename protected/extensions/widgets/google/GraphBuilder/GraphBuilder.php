@@ -38,7 +38,10 @@ class GraphBuilder extends CWidget
                 window.gapis_load_callback = callback;
                 GraphGPlus.init_gapis(function(){
                     window.accessToken = accessToken || <?=Yii::app()->gapis->getTokenForJS()?>;
-                    gapi.auth.setToken(accessToken);
+                    if (!gapi.auth.getToken()) {
+                        gapi.auth.init(function() { gapi.auth.setToken(accessToken); });
+                        gapi.auth.setToken(accessToken);
+                    }
                     if(typeof(window.gapis_load_callback) != 'undefined' && window.gapis_load_callback != null)
                         window.gapis_load_callback();
                 });
