@@ -1,6 +1,0 @@
-[submodule "yii"]
-	path = yii
-	url = git://github.com/yiiext/yii.git
-[submodule "protected/vendors/gapi"]
-	path = protected/vendors/gapi
-	url = git://github.com/artzub/google-api-php-client.git
