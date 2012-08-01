@@ -74,9 +74,9 @@
         'edgeDim' : 50, //use for bezier
         'labelType' : labelType,
         'listLabelType' : nativeTextSupport ? ['Native', 'HTML', 'SVG'] : ['HTML', 'SVG'],
-        'iterations' : 200,
+        'iterations' : 1000,
         'levelDistance' : 260,
-        'iter' : 20,
+        'iter' : 200,
         'stepAnim' : true
     }
 
@@ -202,6 +202,8 @@
       return new $jit.ForceDirected({
         //id of the visualization container
         injectInto: "<?=$htmlOptions['id']?>",
+        width : configGraph.width,
+        height : configGraph.height,
         //Enable zooming and panning
         //by scrolling and DnD
         Navigation: {
@@ -372,6 +374,12 @@
 
 
     jQuery(document).ready(function(){
+        configGraph.stepAnim = false;
+        var page = jQuery("#page");
+        var item = jQuery("#<?=$htmlOptions['id']?>");
+        configGraph.height = item.prop('offsetHeight');
+        configGraph.width = item.prop('offsetWidth');
+
         <?=$objectName?>.fd = init_<?=$htmlOptions['id']?>();
 
         jQuery('#typeEdgeDraw').change(function(item) {

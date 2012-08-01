@@ -80,6 +80,7 @@
             }
             var curPid = addPid("me");
             var completePids = {};
+            var addedPids = {};
 
             var lastPid = 0;
             var countCompleteStep = 0;
@@ -115,8 +116,10 @@
                     };
                     if (curPid.depth > 0
                         &&  isExists(share.actor)
+                        &&  !isExists(addedPids[share.actor.id])
                         &&  !isExists(completePids[share.actor.id])) {
-                        pids.push(addPid(share.actor.id, curPid.depth - 1))
+                        pids.push(addPid(share.actor.id, curPid.depth - 1));
+                        addedPids[share.actor.id] = true;
                     }
                 }
 
@@ -139,23 +142,30 @@
                 if (!continueWork())
                     return;
 
-                gapi.client.plus.comments.list({
-                    "maxResults" : options.maxComments,
-                    "fields":"items/actor",
-                    "activityId":postId
-                }).execute(function(resp) {
-                    dataIndexes[postId].comments = resp.items;
-                    if (curPid.depth > 0) {
-                        for(var item in resp.items) {
-                            item = resp.items[item];
-                            if (isExists(item.actor)
-                                &&  !isExists(completePids[item.actor.id])) {
-                                pids.push(addPid(item.actor.id, curPid.depth - 1))
+                if (options.maxComments > 0) {
+                    gapi.client.plus.comments.list({
+                        "maxResults" : options.maxComments,
+                        "fields":"items/actor",
+                        "activityId":postId
+                    }).execute(function(resp) {
+                        stillWorking.sub = isExists(resp.items);
+                        if (!stillWorking.sub) return;
+
+                        dataIndexes[postId].comments = resp.items;
+                        if (curPid.depth > 0) {
+                            for(var item in resp.items) {
+                                item = resp.items[item];
+                                if (isExists(item.actor)
+                                    && !isExists(addedPids[item.actor.id])
+                                    && !isExists(completePids[item.actor.id])) {
+                                    pids.push(addPid(item.actor.id, curPid.depth - 1));
+                                    addedPids[item.actor.id] = true;
+                                }
                             }
                         }
-                    }
-                    stillWorking.sub = false;
-                });
+                        stillWorking.sub = false;
+                    });
+                }
                 operation = TypeActions.plusone;
             }
 
@@ -163,27 +173,35 @@
                 if (!continueWork())
                     return;
 
-                gapi.client.plus.people.listByActivity({
-                    "maxResults" : operation == TypeActions.plusone ? options.maxPlusone : options.maxReshare,
-                    "fields":"items(displayName,id,image,url)",
-                    "activityId":postId,
-                    "collection": operation == TypeActions.plusone ? "plusoners" : "resharers"
-                }).execute(function(resp) {
-                    var ext = operation == TypeActions.reshare ? "plusoners" : "sharers";
-                    dataIndexes[postId][ext] = resp.items;
-                    if (curPid.depth > 0) {
-                        for(var item in resp.items) {
-                            item = resp.items[item];
-                            if (isExists(item)
-                                &&  !isExists(completePids[item.id])) {
-                                pids.push(addPid(item.id, curPid.depth - 1))
+                var maxres = operation == TypeActions.plusone ? options.maxPlusone : options.maxReshare;
+
+                if (maxres > 0) {
+                    gapi.client.plus.people.listByActivity({
+                        "maxResults" : maxres,
+                        "fields":"items(displayName,id,image,url)",
+                        "activityId":postId,
+                        "collection": operation == TypeActions.plusone ? "plusoners" : "resharers"
+                    }).execute(function(resp) {
+                        stillWorking.sub = isExists(resp.items);
+                        if (!stillWorking.sub) return;
+
+                        var ext = operation == TypeActions.reshare ? "plusoners" : "sharers";
+
+                        dataIndexes[postId][ext] = resp.items;
+                        if (curPid.depth > 0) {
+                            for(var item in resp.items) {
+                                item = resp.items[item];
+                                if (isExists(item)
+                                    && !isExists(addedPids[item.id])
+                                    && !isExists(completePids[item.id])) {
+                                    pids.push(addPid(item.id, curPid.depth - 1));
+                                    addedPids[item.id] = true;
+                                }
                             }
                         }
-                    }
-                    if(ext == "sharers")
-                        index++;
-                    stillWorking.sub = false;
-                });
+                        stillWorking.sub = false;
+                    });
+                }
                 operation = operation == TypeActions.plusone ? TypeActions.reshare : TypeActions.post;
             }
 
@@ -192,10 +210,10 @@
                 if (!continueWork() || posts.length < 1) {
                     countCompleteStep++;
                     posts = null;
-                    index = 0;
+                    index = -1;
 
                     if(isExists(obj.onStep))
-                        obj.onStep(++curStep, options.maxResult);
+                        obj.onStep(++curStep, options.maxResult, getState());
 
                     var dataResult = dataIndexes;
                     if (isExists(obj.DataBuilder)) {
@@ -220,27 +238,29 @@
                     case TypeActions.post:
                         if(isExists(obj.onStep))
                             obj.onStep(curStep++, options.maxResult, getState());
+                        index++;
                         parsePost();
                         break;
                     case TypeActions.comment:
-                        if(stillWorking.sub = posts[index].object.replies.totalItems > 0)
+                        if(stillWorking.sub = posts[index].object.replies.totalItems > 0
+                          && options.maxComments > 0)
                             parseComment();
                         else
                             operation = TypeActions.plusone;
                         break;
                     case TypeActions.plusone:
-                        if(stillWorking.sub = posts[index].object.plusoners.totalItems > 0)
+                        if(stillWorking.sub = posts[index].object.plusoners.totalItems > 0
+                          && options.maxPlusone > 0 )
                             parsePlusoneReshare();
                         else
                             operation = TypeActions.reshare;
                         break;
                     case TypeActions.reshare:
-                        if(stillWorking.sub = posts[index].object.resharers.totalItems > 0)
+                        if(stillWorking.sub = posts[index].object.resharers.totalItems > 0
+                          && options.maxReshare > 0)
                             parsePlusoneReshare();
-                        else {
+                        else
                             operation = TypeActions.post;
-                            index++;
-                        }
                         break;
                 }
                 switcher();
@@ -248,6 +268,7 @@
 
             function doGenerate(resp){
                 posts = null;
+                index = -1;
                 nextPage = resp.nextPageToken;
                 if (!isExists(nextPage)) {
                     step = 0;
@@ -301,7 +322,7 @@
             var loopPids = function() {
                 curStep = 0;
                 if(isExists(obj.onStep))
-                    obj.onStep(curStep, options.maxResult);
+                    obj.onStep(curStep, options.maxResult, getState());
 
                 if (lastPid > pids.length - 1) {
                     if(isExists(obj.onComplete))

@@ -1,6 +1,6 @@
 #jit_container {
-    width: 1000px;
-    height: 600px;
+    width: auto;
+    height: 100%;
     margin:0 auto;
     position:relative;
 }
@@ -8,9 +8,8 @@
 #jit_left-container,
 #jit_right-container,
 #jit_center-container {
-    height:600px;
-    position:absolute;
-    top:0;
+    height: 100%;
+    position: relative;
 }
 
 #jit_left-container, #jit_right-container {
@@ -24,7 +23,6 @@
 }
 
 #jit_left-container {
-    left:0;
     background-image:url('col2.png');
     background-position:center right;
     border-left:1px solid #ddd;
@@ -32,7 +30,6 @@
 }
 
 #jit_right-container {
-    right: 75px;
     background-image:url('col1.png');
     background-position:center left;
     border-right:1px solid #ddd;
@@ -43,7 +40,7 @@
 }
 
 #jit_center-container {
-    width: 700px;
+    width: 100%;
     background-color: #666;
     color:#ccc;
 }
@@ -69,11 +66,11 @@
 
 .jit_infovis {
     position:relative;
-    width:700px;
-    height:600px;
-    margin:auto;
+    height:100%;
     overflow:hidden;
 }
+
+
 
 /*TOOLTIPS*/
 .tip {

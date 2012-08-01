@@ -2,9 +2,10 @@
 $name = isset($type) ? $type : 'Error';
 
 $this->pageTitle=Yii::app()->name . ' - ' . $name;
-$this->breadcrumbs=array(
+$this->breadcrumbs=null;
+    /*array(
 	$name,
-);
+);    */
 
 $this->widget('ext.widgets.google.gapiOAuth2Refresh.gapiOAuth2Refresh');
 ?>
@@ -162,11 +163,9 @@ $this->widget('ext.widgets.google.gapiOAuth2Refresh.gapiOAuth2Refresh');
 
         setTimeout(function() {
             restartBefore();
-        }, 100);
+        }, 1);
     });
 </script>
-
-<h1><?=$name?></h1>
 
 <?$this->widget('ext.widgets.spin.Spin', array(
     'options' => array(

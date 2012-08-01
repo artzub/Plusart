@@ -1,6 +1,14 @@
+.jit_infovis > div {
+    position: relative;
+    height: 100%;
+    overflow: hidden;
+}
+
+
 #jit_inner-details {
   font-size:12px;
 }
+
 
 span.close {
 	color:#FF5555;

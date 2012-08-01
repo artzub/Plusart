@@ -35,18 +35,20 @@
                         ),
                 )));*/?>
             </div>
-            <?  $person = Yii::app()->gapis->getState("person");
-                if(isset($person)) : ?>
-                <div class="user right">
-                    <img src="<?=$person["img"]?>" alt="<?=$person["name"]?>" class="left">
-                    <div class="user-info">
-                        <div><a href="<?=$person["url"]?>"><?=$person["name"]?></a></div>
-                        <div>(<?=CHtml::link('logout', array('logout'))?>)</div>
-                    </div>
-                </div>
-            <? endif ?>
         </div>
 	</div><!-- header -->
+
+    <?  $person = Yii::app()->gapis->getState("person");
+    if(isset($person)) : ?>
+    <div class="userpanel">
+        <img src="<?=$person["img"]?>" alt="<?=$person["name"]?>" class="left">
+        <div class="user-info">
+            <div class="user-info-name"><a href="<?=$person["url"]?>"><?=$person["name"]?></a></div>
+            <div class="user-info-logout">(<?=CHtml::link('logout', array('logout'))?>)</div>
+        </div>
+    </div>
+    <? endif ?>
+
     <? /*
 	<div id="mainmenu">
 		<?php $this->widget('zii.widgets.CMenu',array(

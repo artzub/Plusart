@@ -54,7 +54,9 @@ return array(
             'apiConfig' => array(
                 'oauth2_client_id' => '733153716518.apps.googleusercontent.com',
                 'oauth2_client_secret' => 'StVK3rCxaMb5jBmRQcnnLDnN',
-                'oauth2_redirect_uri' => 'http://localhost/login',
+                'oauth2_redirect_uri' =>
+                    //'http://plusar.artzub.com/login',
+                    'http://localhost/login',
                 'developer_key' => 'AIzaSyAsyXRlUEgHZC4RNwQ7YrsVonWVEhB-FpY',
             ),
         ),
@@ -92,21 +94,21 @@ return array(
 		'log'=>array(
 			'class'=>'CLogRouter',
 			'routes'=>array(
-				array(
+				/*array(
 					'class'=>'CFileLogRoute',
 					'levels'=>'trace, info',
-				),
+				),*/
                 array(
                     'class'=>'CEmailLogRoute',
                     'levels'=>'error, warning',
                     'emails'=>'artzub@gmail.com',
                 ),
 				// uncomment the following to show log messages on web pages
-
+/*
 				array(
 					'class'=>'CWebLogRoute',
 				),
-
+*/
 			),
 		),
 	),
