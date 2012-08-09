@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html>
+<!--
+Copyright 2012 Google Inc.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+-->
+
+<!--
+Index file for the OAuth 2.0 client side flow tutorial.
+
+Author silvano.luciani@gmail.com (Silvano Luciani)
+-->
+<head>
+    <title>OAuth 2.0 client side flow tutorial</title>
+    <script type="text/javascript" src="closure-library/closure/goog/base.js"></script>
+    <script type="text/javascript">
+        goog.require('goog.date.DateTime');
+        goog.require('goog.dom');
+        goog.require('goog.events');
+        goog.require('goog.net.Jsonp');
+        goog.require('goog.storage.mechanism.HTML5LocalStorage');
+        goog.require('goog.storage.Storage');
+        goog.require('goog.Uri');
+        goog.require('goog.Uri.QueryData');
+    </script>
+    <script type="text/javascript" src="conf.js"></script>
+    <script type="text/javascript" src="storage.js"></script>
+    <script type="text/javascript" src="oauth.js"></script>
+    <script type="text/javascript" src="net.js"></script>
+    <script>
+        function startFlow() {
+            function firstRequest(accessToken) {
+                sendRequest(accessToken,
+                    conf.BASE_REQUEST_URI + 'people/me/activities/public',
+                    parseUserActivity(document.body));
+            }
+            var now = new goog.date.DateTime().getTime();
+            if (accessToken() && accessToken().expiration > now) {
+                firstRequest(accessToken().accessToken);
+            } else {
+                authorize(firstRequest);
+            }
+        }
+    </script>
+</head>
+<body onLoad="startFlow();">
+</body>
+</html>
+
