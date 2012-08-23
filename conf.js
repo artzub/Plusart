@@ -20,6 +20,7 @@
  */
 
 var conf = {
+  API_KEY: /*'AIzaSyAsyXRlUEgHZC4RNwQ7YrsVonWVEhB-FpY',*/'AIzaSyBZFxTKwehxucjS0kisCvwfdckbsmhvuHA',
   CLIENT_ID: '733153716518.apps.googleusercontent.com',
   REDIRECT_URI: 'http://plusar.artzub.com/',
   AUTH_SCOPE: 'https://www.googleapis.com/auth/plus.me',

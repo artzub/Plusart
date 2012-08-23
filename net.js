@@ -4,8 +4,7 @@
  *    the request.
  */
 function sendRequest(accessToken, url, callback) {
-  var reqUri = new goog.Uri(url);
-  reqUri.setParameterValue('access_token', accessToken);
-  var jsonp = new goog.net.Jsonp(reqUri);
-  jsonp.send({}, callback);
+    url += url.indexOf("?") === -1 ? "?" : "&";
+    url += plusar.useKey ? "key=" + conf.API_KEY : 'access_token=' + accessToken;
+    JSONP(url, callback);
 }

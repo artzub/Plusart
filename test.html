@@ -1,0 +1,250 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title></title>
+    <script type="text/javascript" src="protovis.js"></script>
+</head>
+<body>
+<script type="text/javascript+protovis">
+    var w = 550,
+        h = 440;
+    var vis = new pv.Panel()
+        .width(w)
+        .height(h)
+        .fillStyle('#004444');
+    var dotRadius = w / 75;
+    var numDots = 50;
+    var vmag = 1;
+    var rmax = 50;
+    var goal = 10;
+    var dotsBurst = 0;
+
+    /// Mouse bubble
+
+    var bub = {
+        x    : 0,
+        y    : 0,
+        r    : 0,
+        dr   : 0,
+        c    : 'rgba(255, 255, 255, 0.5)',
+        vis  : 0,
+        burst: 0
+    };
+
+    var bubble = vis.add(pv.Dot)
+        .fillStyle(bub.c)
+        .strokeStyle(bub.c)
+        .left(function() { return bub.x })
+        .top(function() { return bub.y })
+        .visible(function() { return bub.vis })
+        .radius(function() {
+            var R = bub.r;
+
+            // expand the bubble
+            if (bub.dr > 0) {
+                if (bub.r < rmax) {
+                    bub.r += 0.5 * bub.dr * (0.1 + Math.cos(Math.PI/2
+* bub.r/rmax));
+                } else {
+                    bub.dr = -3;
+                }
+            }
+            // contract the bubble
+            else {
+                if (bub.r > 0) {
+                    bub.r += bub.dr;
+                } else {
+                    bub.dr = 0;
+                    bub.r = 0;
+                    bub.vis = 0;
+                    bub.burst = 1;
+                }
+            }
+
+            if (bub.dr && bub.vis) {
+                // that was fun, let's do it again!
+                setTimeout(function() {bubble.render() }, 25);
+            }
+
+            return R;
+         });
+
+    vis.event('click', function() {
+        if (!bub.burst) {
+            var m = vis.mouse();
+            bub.x = m.x;
+            bub.y = m.y;
+            bub.dr = 2;
+            bub.r = rmax / 10;
+            bub.vis = 1;
+
+            bubble.render();
+        }
+    });
+
+
+    /// Bouncing dots
+
+    var x = pv.Scale.linear(0,1).range(dotRadius, w - dotRadius),
+        y = pv.Scale.linear(0,1).range(dotRadius, h - dotRadius),
+        c = pv.Scale.linear(-vmag,0,vmag).range('red','green','blue');
+
+    var bouncingDots = pv.range(numDots)
+        .map(function(i) {
+            var vx0 = Math.cos(2 * Math.PI * Math.random());
+            var vy0 = Math.sin(2 * Math.PI * Math.random());
+            var V = Math.sqrt(vx0 * vx0 + vy0 * vy0);
+            vx0 *= vmag / V;
+            vy0 *= vmag / V;
+            var xpos = x(Math.random());
+            var ypos = y(Math.random());
+
+            // pv.Particle
+            return {
+                x: xpos,
+                y: ypos,
+                vx: vx0,
+                vy: vy0,
+                r: dotRadius,
+                dr: 0,
+                px: xpos - vx0,
+                py: ypos - vy0,
+                c: c(vx0),
+                vis: 1,
+                burst: 0
+            };
+        });
+
+    var bouncing = vis.add(pv.Dot)
+        .data(bouncingDots)
+        .visible(function(d) {
+            return d.vis;
+        })
+
+        .left(function(d) {
+            var dot = bouncingDots[this.index];
+
+            if (dot.x < dotRadius || dot.x > w - dotRadius) {
+                var x = dot.x;
+                dot.x = dot.px;
+                dot.px = x;
+                dot.vx = -dot.vx;
+            }
+
+            return dot.x;
+        })
+        .top(function(d) {
+            var dot = bouncingDots[this.index];
+
+            if (dot.y < dotRadius || dot.y > h - dotRadius) {
+                var y = dot.y;
+                dot.y = dot.py;
+                dot.py = y;
+                dot.vy = -dot.vy;
+            }
+
+            return dot.y;
+        })
+        .radius(function(d) {
+            var bouncingDot = bouncingDots[this.index];
+            if (bouncingDot.burst) {
+                return 0;
+            }
+
+            var distFromBub = Math.sqrt(
+                Math.pow(bouncingDot.x-bub.x, 2) +
+Math.pow(bouncingDot.y-bub.y, 2)
+            );
+            var touchedBubble = bub.vis && !bouncingDot.dr &&
+bouncingDot.vis
+                && distFromBub <= bouncingDot.r + bub.r;
+
+            if (bouncingDot.vis && bouncingDot.dr) {
+                // xxx: could be done better....
+                var len = bouncingDots.length;
+                for (var i = 0; i < len; ++i) {
+                    if (i == this.index) {
+                        continue;
+                    }
+                    var otherDot = bouncingDots[i];
+                    var distFromDot = Math.sqrt(
+                        Math.pow(bouncingDot.x-otherDot.x, 2) +
+Math.pow(bouncingDot.y-otherDot.y, 2)
+                    );
+                    var touchedDot = otherDot.vis && bouncingDot.dr &&
+bouncingDot.vis
+                        && distFromDot <= bouncingDot.r + otherDot.r;
+                    if (touchedDot && otherDot.vis && !otherDot.dr) {
+                        otherDot.dr = 2;
+                        otherDot.r = rmax / 10;
+
+                        otherDot.vx = 0;
+                        otherDot.vy = 0;
+                        otherDot.px = otherDot.x;
+                        otherDot.py = otherDot.y;
+
+                        dotsBurst++;
+                    }
+                }
+            }
+
+            if (touchedBubble) {
+                bouncingDot.dr = 2;
+                bouncingDot.r = rmax / 10;
+                bouncingDot.vis = 1;
+
+                bouncingDot.vx = 0;
+                bouncingDot.vy = 0;
+                bouncingDot.px = bouncingDot.x;
+                bouncingDot.py = bouncingDot.y;
+
+                dotsBurst++;
+            }
+
+            if (bouncingDot.dr == 0 && !bouncingDot.burst) {
+                return dotRadius;
+            }
+
+            var R = bouncingDot.r;
+
+            // expand the dot
+            if (bouncingDot.dr > 0) {
+                if (bouncingDot.r < rmax) {
+                    bouncingDot.r += 0.5 * bouncingDot.dr * (0.1 +
+Math.cos(Math.PI/2 * R/rmax));
+                } else {
+                    bouncingDot.dr = -3;
+                }
+            }
+            // contract the dot
+            else {
+                if (bouncingDot.r > 0) {
+                    bouncingDot.r += bouncingDot.dr;
+                } else {
+                    bouncingDot.dr = 0;
+                    bouncingDot.r = 0;
+                    bouncingDot.vis = 0;
+                    bouncingDot.burst = 1;
+                }
+            }
+
+            return R;
+        })
+        .fillStyle(function(d) d.c)
+        .strokeStyle(function(d) d.c);
+
+    vis.render();
+
+    var sim = new pv.Simulation(bouncingDots);
+    setInterval(function() {
+        sim.step();
+        if (dotsBurst > goal) {
+            vis.fillStyle('#aaffaa');
+            vis.render();
+        } else {
+            bouncing.render();
+        }
+    }, 25);
+</script>
+</body>
+</html>

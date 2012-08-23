@@ -1,11 +1,19 @@
+plusar.Storage = (function Storage(webstorage) {
+    webstorage.__proto__.get = function(key) {
+        return JSON.parse(this.getItem(key));
+    };
+    webstorage.__proto__.set = function(key, value) {
+        this.setItem(key, JSON.stringify(value));
+    }
+    return webstorage;
+})(window.localStorage);
+
 /**
  * Creates the local storage.
  * @return {goog.storage.Storage} the local storage.
  */
 function getStorage() {
-    var mechanism = new goog.storage.mechanism.HTML5LocalStorage();
-    var localStorage = new goog.storage.Storage(mechanism);
-    return localStorage;
+    return plusar.Storage;
 }
 
 /**
@@ -14,7 +22,7 @@ function getStorage() {
  * @param {string} expires_in the validity of the token in seconds.
  */
 function saveToken(token, expires_in) {
-    var now = new goog.date.DateTime().getTime();
+    var now = Date.now();
     var accessToken = {};
     var msToAdd = (parseInt(expires_in) - 100) * 1000;
     accessToken.expiration = now + msToAdd;
