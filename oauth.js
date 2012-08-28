@@ -6,7 +6,27 @@ function refreshAccessToken() {
     return run;
 }
 
+function checkAuth(callback, errorcall) {
+    gapi.auth.authorize({
+            client_id: conf.CLIENT_ID,
+            scope: conf.AUTH_SCOPE,
+            immediate: accessToken() && accessToken().expiration > Date.now()
+        },
+        function handleAuthResult(authResult) {
+            if (authResult && !authResult.error) {
+                saveToken(authResult.access_token, authResult.expires_in);
+                window.accessToken = refreshAccessToken();
+                callback && callback(authResult);
+            } else if(errorcall) {
+                getStorage().remove("accessToken")
+                errorcall(authResult || {error : "error auth"})
+            }
+        });
+}
+
 window.accessToken = refreshAccessToken();
+
+
 /**
  * If a fragment is present sends a validation request for the token, otherwise
  * redirects to the authorization server.

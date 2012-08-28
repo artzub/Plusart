@@ -48,76 +48,105 @@ function addChildNode(data, parent, type, value, random) {
 
 function parsePostActivity(data, parent, depth, type) {
     depth = depth || 0;
-    return function(pluses) {
-        if (pluses.hasOwnProperty("error")) {
-            console.log(pluses);
-            return;
-        }
-        plusar.asyncForEach(pluses.items, function(item) {
-            var id = (item.hasOwnProperty("actor") ? item.actor : item).id;
-            addChildNode(data, parent, type, item);
-            if (depth > 0 && !data.hash.hasOwnProperty(id)) {
-                data.hash[id] = -1;
-                sendRequest(accessToken().access_token,
-                    urlListActivities(id),
-                    parseUserActivity(data, plusar.Count, depth - 1)
-                );
+    function run(data, parent, depth, type) {
+        return function(pluses) {
+            if (pluses.hasOwnProperty("error")) {
+                console.log(pluses);
+                return;
             }
-        });
+
+            plusar.asyncForEach(pluses.items, function(item) {
+                var id = (item.hasOwnProperty("actor") ? item.actor : item).id;
+                addChildNode(data, parent,
+                    type == "replies"
+                          ? 2 : type == "plusoners"
+                                      ? 3 : type == "resharers" ? 4 : 5,
+                    item);
+                if (depth > 0 && !data.hash.hasOwnProperty(id)) {
+                    data.hash[id] = -1;
+                    parseUserActivity(data, id, plusar.Count, depth - 1);
+                }
+            });
+        }
+    }
+
+    if (parent.nodeValue.id) {
+        var request;
+        if (type == "replies") {
+            request = gapi.client.plus.comments.list({
+                maxResults : plusar.MaxResComment,
+                //"fields":"items(actor(displayName,id),id,inReplyTo/id,published,updated)",
+                activityId : parent.nodeValue.id
+            });
+        }
+        else {
+            request = gapi.client.plus.people.listByActivity({
+                maxResults : plusar.MaxResPeople,
+                //"fields":"items(displayName,id),selfLink",
+                activityId : parent.nodeValue.id,
+                collection : type
+            });
+        }
+        if (request)
+            request.execute(run(data, parent, depth, type));
     }
 }
 
-function parseUserActivity(data, count, depth) {
-    depth = depth || 0;
-    return function(activities) {
-        if (activities.hasOwnProperty("error")) {
-            console.log(activities);
-            return;
-        }
-
-        count = typeof count === "undefined" ? activities.items.length : count;
-        plusar.asyncForEach(activities.items, function(item) {
-            var i = data.nodes.length;
-            var idUser = data.hash[item.actor.id];
-            if (typeof idUser == "undefined" || idUser == -1) {
-                data.nodes.push({
-                    x : w * Math.random(),
-                    y : h * Math.random(),
-                    r : 7,
-                    linkDegree : 0,
-                    type : 0,
-                    nodeValue : item.actor,
-                    index : i
-                });
-                idUser = i;
-                data.hash[item.actor.id] = i;
-                sim.particle(data.nodes[i]);
+function parseUserActivity(data, id, count, depth, nextPage) {
+    function run(data, id, count, depth) {
+        depth = depth || 0;
+        return function(activities) {
+            if (activities.hasOwnProperty("error")) {
+                console.log(activities);
+                return;
             }
-            var parent = data.nodes[idUser];
 
-            i = addChildNode(data, parent, 1, item, false);
+            count = typeof count === "undefined" ? activities.items.length : count;
+            plusar.asyncForEach(activities.items, function(item) {
+                var i = data.nodes.length;
+                var idUser = data.hash[item.actor.id];
+                if (typeof idUser == "undefined" || idUser == -1) {
+                    data.nodes.push({
+                        x : w * Math.random(),
+                        y : h * Math.random(),
+                        r : 7,
+                        linkDegree : 0,
+                        type : 0,
+                        nodeValue : item.actor,
+                        index : i
+                    });
+                    idUser = i;
+                    data.hash[item.actor.id] = i;
+                    sim.particle(data.nodes[i]);
+                }
+                var parent = data.nodes[idUser];
 
-            if (item.object) {
-                ["replies", "plusoners", "resharers"].forEach(function(l, j) {
-                    if (item.object.hasOwnProperty(l)
-                    &&  item.object[l].totalItems) {
-                        sendRequest(accessToken().access_token,
-                            item.object[l].selfLink,
-                            parsePostActivity(data,
+                i = addChildNode(data, parent, 1, item, false);
+
+                if (item.object) {
+                    ["replies", "plusoners", "resharers"].forEach(function(l, j) {
+                        if (item.object.hasOwnProperty(l)
+                        &&  item.object[l].totalItems) {
+                            parsePostActivity(
+                                data,
                                 data.nodes[i],
                                 depth - 1,
-                                j + 2
-                            )
-                        )
-                    }
-                })
-            }
-        });
-        if (activities.nextPageToken && count - activities.items.length > 0)
-            sendRequest(accessToken().access_token,
-                activities.nextLink,
-                parseUserActivity(data, count - activities.items.length,
-                    depth)
-            );
+                                l
+                            );
+                        }
+                    })
+                }
+            });
+            if (activities.nextPageToken && count - activities.items.length > 0)
+                parseUserActivity(data, id, count - activities.items.length, depth, activities.nextPageToken)
+        }
     }
+
+    gapi.client.plus.activities.list({
+        //'fields' : 'nextPageToken,items(actor(displayName,id),id,object(actor(displayName,id),plusoners,replies,resharers),published,updated,verb)',
+        userId : id,
+        collection : 'public',
+        maxResults : 10,
+        pageToken : nextPage
+    }).execute(run(data, id, count, depth));
 }

@@ -15,3 +15,5 @@ plusar.asyncForEach = function(items, fn) {
 plusar.Count = 50;
 plusar.Depth = 1;
 plusar.useKey = true;
+plusar.MaxResComment = 10;
+plusar.MaxResPeople = 10;

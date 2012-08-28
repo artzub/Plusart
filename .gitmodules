@@ -1,6 +1,0 @@
-[submodule "closure-library"]
-	path = closure-library
-	url = git://github.com/jarib/google-closure-library.git
-[submodule "JSONP"]
-	path = JSONP
-	url = git@github.com:artzub/JSONP.git

@@ -1,37 +1,31 @@
+<!--
+  Copyright (c) 2011 Google Inc.
+
+  Licensed under the Apache License, Version 2.0 (the "License"); you may not
+  use this file except in compliance with the License. You may obtain a copy of
+  the License at
+
+  http://www.apache.org/licenses/LICENSE-2.0
+
+  Unless required by applicable law or agreed to in writing, software
+  distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+  WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+  License for the specific language governing permissions and limitations under
+  the License.
+
+  To run this sample, replace YOUR API KEY with your application's API key.
+  It can be found at https://code.google.com/apis/console/?api=plus under API Access.
+  Activate the Google+ service at https://code.google.com/apis/console/ under Services
+-->
 <!DOCTYPE html>
 <html>
-<!--
-Copyright 2012 Google Inc.
-
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-
-    http://www.apache.org/licenses/LICENSE-2.0
-
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
--->
-
-<!--
-Index file for the OAuth 2.0 client side flow tutorial.
-
-Author silvano.luciani@gmail.com (Silvano Luciani)
--->
 <head>
-    <title>Visualization Users of Google Plus</title>
-    <!--script type="text/javascript" src="http://d3js.org/d3.v2.min.js"></script-->
+    <meta charset='utf-8'/>
     <script type="text/javascript" src="protovis.js"></script>
-    <script type="text/javascript" src="JSONP/JSONP.js"></script>
     <script type="text/javascript" src="global.js"></script>
-    <!--script type="text/javascript" src="data.js"></script-->
     <script type="text/javascript" src="conf.js"></script>
     <script type="text/javascript" src="storage.js"></script>
     <script type="text/javascript" src="oauth.js"></script>
-    <script type="text/javascript" src="net.js"></script>
     <script type="text/javascript" src="gplus.js"></script>
     <style>
         body {
@@ -42,131 +36,151 @@ Author silvano.luciani@gmail.com (Silvano Luciani)
             display: block;
             margin: 0 auto;
         }
+
+        .popup {
+            position: absolute;
+        }
+
+        #userinfo {
+            top: 0;
+            left: 5%;
+            z-index: 10;
+        }
     </style>
 </head>
-<body onLoad="startFlow();">
-<script type="text/javascript">
+<body>
+    <script type="text/javascript">
+        var params = {};
+        document.location.search.replace(/^\?/, "").split("&").forEach(function(item) {
+            var values = item.toLowerCase().split("=");
+            var key = values[0];
+            params[key] = values.length > 1 ? values[1] : "";
+        })
 
-    var params = {};
-    document.location.search.replace(/^\?/, "").split("&").forEach(function(item) {
-        var values = item.split("=");
-        var key = values[0];
-        params[key] = values.length > 1 ? values[1] : "";
-    })
+        window.data &&
+            data.links.forEach(function(d) {
+                d.sourceNode = data.nodes[d.source];
+                d.targetNode = data.nodes[d.target];
+            });
 
-    function refreshData(nodes) {
+        data = window.data || { hash : {}, nodes : [], links : [] };
 
-    }
+        data.hash = data.hash || {};
 
-    window.data &&
-        data.links.forEach(function(d) {
-            d.sourceNode = data.nodes[d.source];
-            d.targetNode = data.nodes[d.target];
-        });
+        var w = 0,
+            h = 0;
 
-    data = window.data || { hash : {}, nodes : [], links : [] };
+        var force = pv.Force.spring().links(data.links);
 
-    data.hash = data.hash || {};
+        var sim = pv.simulation(data.nodes)
+            .constraint(pv.Constraint.collision(function(d) { return d.r * 1.2 } ))
+            .force(pv.Force.drag(.07))
+            .force(force)
+            .force(pv.Force.charge(-4))
+            .stabilize();
 
-    var w = 0,
-        h = 0;
+        function startFlow() {
+            w = document.body.scrollWidth,
+            h = document.body.scrollHeight - 5;
 
-    var force = pv.Force.spring().links(data.links);
+            var colors = pv.colors(
+                "#29BD1C",
+                "#FFFE1A",
+                "#2C87FF",
+                "#FEA61D",
+                "#FF3F46"
+            ).domain(0, 4);
 
-    var sim = pv.simulation(data.nodes)
-        .constraint(pv.Constraint.collision(function(d) { return d.r * 1.2 } ))
-        .force(pv.Force.drag(.07))
-        .force(force)
-        .force(pv.Force.charge(-10))
-        .stabilize();
+            var vis = new pv.Panel()
+                    .width(w)
+                    .height(h)
+                    .fillStyle("rgba(255,255,255,0.01)")//"#f9f9f9")
+                    .event("mousedown", pv.Behavior.pan())
+                    .event("mousewheel", pv.Behavior.zoom());
 
-    function startFlow() {
-        w = document.body.scrollWidth,
-        h = document.body.scrollHeight - 5;
+            if (typeof params.showedge != "undefined")
+                vis.add(pv.Panel)
+                    .data(data.links)
+                  .add(pv.Line)
+                    .data(function(d) {return [d.sourceNode, d.targetNode]; })
+                    .left(function(d) { return d.x; })
+                    .top(function(d) { return d.y; })
+                    .strokeStyle("rgba(0, 0, 0, .1)");
 
-        var colors = pv.colors(
-            "#29BD1C",
-            "#FFFE1A",
-            "#2C87FF",
-            "#FEA61D",
-            "#FF3F46"
-        ).domain(0, 4);
-
-        var vis = new pv.Panel()
-                .width(w)
-                .height(h)
-                .fillStyle("rgba(255,255,255,0.01)")//"#f9f9f9")
-                .event("mousedown", pv.Behavior.pan())
-                .event("mousewheel", pv.Behavior.zoom());
-
-        if (typeof params.showedge != "undefined")
             vis.add(pv.Panel)
-                .data(data.links)
+                .data(data.nodes)
+            .add(pv.Dot)
+                .data(pv.range(2))
+                .left(function(i, d) { return d.x })
+                .top(function(i, d) { return d.y })
+                .title(function(i, d) {return i ?
+                    (d.type == 1 ? d.nodeValue.title :
+                    (d.nodeValue.hasOwnProperty("actor") ? d.nodeValue.actor : d.nodeValue).displayName) : ""; })
+                .radius(function(i, d) { return i ? d.r : d.r * 0.02; })
+                .lineWidth(function(i, d) { return i ? d.r * 0.02 : 0; })
+                .fillStyle(function(i, d) { return i ? colors(d.type).alpha(.4) : colors(d.type).darker().darker().darker().darker(); })
+                .strokeStyle(function(i, d) { return this.fillStyle().darker().darker().darker().darker(); });
+
+            /*vis.add(pv.Panel)
+                .data(data.nodes)
               .add(pv.Line)
-                .data(function(d) {return [d.sourceNode, d.targetNode]; })
-                .left(function(d) { return d.x; })
-                .top(function(d) { return d.y; })
-                .strokeStyle("rgba(0, 0, 0, .1)");
+                .data(pv.range(2))
+                .strokeStyle(pv.ramp("steelblue", "brown", "steelblue").by(function(i, d) { return d.vx * d.vx + d.vy * d.vy }))
+                .left(function(i, d) { return d.x + i * 10 * d.vx })
+                .top(function(i, d) { return d.y + i * 10 * d.vy });*/
 
-        vis.add(pv.Panel)
-            .data(data.nodes)
-        .add(pv.Dot)
-            .data(pv.range(2))
-            .left(function(i, d) { return d.x })
-            .top(function(i, d) { return d.y })
-            .title(function(i, d) {return i ?
-                (d.type == 1 ? d.nodeValue.title :
-                (d.nodeValue.hasOwnProperty("actor") ? d.nodeValue.actor : d.nodeValue).displayName) : ""; })
-            .radius(function(i, d) { return i ? d.r : d.r * 0.02; })
-            .lineWidth(function(i, d) { return i ? d.r * 0.02 : 0; })
-            .fillStyle(function(i, d) { return i ? colors(d.type).alpha(.4) : colors(d.type).darker().darker().darker().darker(); })
-            .strokeStyle(function(i, d) { return this.fillStyle().darker().darker().darker().darker(); });
+            function firstRequest() {
+                gid = (params.gids ? params.gids : null ) || "me";
+                plusar.Count = params.count || 10;
+                plusar.Depth = params.depth || 1;
+                plusar.MaxResComment = params.ccount || 10;
+                plusar.MaxResPeople = params.pcount || 10;
+                plusar.asyncForEach(gid.split(";"), function(id) {
+                    parseUserActivity(data, id, plusar.Count, plusar.Depth);
+                });
+            }
 
+            var now = Date.now();
 
-        /*vis.add(pv.Panel)
-            .data(data.nodes)
-          .add(pv.Line)
-            .data(pv.range(2))
-            .strokeStyle(pv.ramp("steelblue", "brown", "steelblue").by(function(i, d) { return d.vx * d.vx + d.vy * d.vy }))
-            .left(function(i, d) { return d.x + i * 10 * d.vx })
-            .top(function(i, d) { return d.y + i * 10 * d.vy });*/
+            firstRequest();
 
-        function firstRequest(accessToken) {
-            gid = (params.gids ? params.gids : null ) || "me";
-            plusar.Count = params.count || 10;
-            plusar.Depth = params.depth || 1;
-            plusar.asyncForEach(gid.split(";"), function(id) {
-                sendRequest(accessToken,
-                    urlListActivities(id),
-                    parseUserActivity(data, plusar.Count, plusar.Depth));
+            window.renderTimer = setInterval(function() {
+                vis.render();
+            }, 12);
+
+            window.calcTimer = setInterval(function() {
+                sim.step();
+            }, 12);
+        }
+
+        function handleClientLoad() {
+            gapi.client.setApiKey(conf.API_KEY);
+            window.setTimeout(function() {
+                checkAuth(makeApiCall)
+            }, 1);
+        }
+
+        // Load the API and make an API call.  Display the results on the screen.
+        function makeApiCall() {
+            gapi.client.load('plus', 'v1', function() {
+                var request = gapi.client.plus.people.get({
+                    'userId': 'me'
+                });
+                request.execute(function(resp) {
+                    var heading = document.createElement('h4');
+                    var image = document.createElement('img');
+                    image.src = resp.image.url;
+                    heading.appendChild(image);
+                    heading.appendChild(document.createTextNode(resp.displayName));
+
+                    document.getElementById('userinfo').appendChild(heading);
+
+                    startFlow();
+                });
             });
         }
-
-        var now = Date.now();
-
-        if (accessToken() && accessToken().expiration > now) {
-            firstRequest(accessToken().access_token);
-        } else {
-            authorize(firstRequest);
-        }
-
-        window.renderTimer = setInterval(function() {
-            vis.render();
-        }, 12);
-
-        window.calcTimer = setInterval(function() {
-            sim.step();
-        }, 12);
-    }
-
-    function save() {
-        /*document.appendChild(document.createTextNode(JSON.stringify({
-                    nodes : data.nodes,
-                    links : links
-                })));*/
-    }
-
     </script>
-</body>
+    <script src="https://apis.google.com/js/client.js?onload=handleClientLoad"></script>
+    <div id="userinfo" class="popup"></div>
+  </body>
 </html>
-
