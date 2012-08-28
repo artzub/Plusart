@@ -118,7 +118,7 @@
                     (d.nodeValue.hasOwnProperty("actor") ? d.nodeValue.actor : d.nodeValue).displayName) : ""; })
                 .radius(function(i, d) { return i ? d.r : d.r * 0.02; })
                 .lineWidth(function(i, d) { return i ? d.r * 0.02 : 0; })
-                .fillStyle(function(i, d) { return i ? colors(d.type).alpha(.4) : colors(d.type).darker().darker().darker().darker(); })
+                .fillStyle(function(i, d) { return i ? colors(d.type).alpha(d.type == 0 && data.me.id == d.nodeValue.id ?.8 : .4) : colors(d.type).darker().darker().darker().darker(); })
                 .strokeStyle(function(i, d) { return this.fillStyle().darker().darker().darker().darker(); });
 
             /*vis.add(pv.Panel)
@@ -167,6 +167,7 @@
                     'userId': 'me'
                 });
                 request.execute(function(resp) {
+                    data.me = resp;
                     var heading = document.createElement('h4');
                     var image = document.createElement('img');
                     image.src = resp.image.url;
