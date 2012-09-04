@@ -8,3 +8,9 @@ var bpls = true,
   TOKEN_INFO_URI: 'https://www.googleapis.com/oauth2/v1/tokeninfo',
   BASE_REQUEST_URI: 'https://www.googleapis.com/plus/v1/'
 };
+
+plusar.Count = 10;
+plusar.Depth = 1;
+plusar.useKey = false;
+plusar.useDepth = true;
+plusar.maxResults = { replies : 10, plusoners : 10, resharers : 10 };

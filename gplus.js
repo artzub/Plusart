@@ -7,6 +7,16 @@ function incSize(item) {
     item.r++;
 }
 
+function callAlpha(data) {
+    limits = data.nodes.reduce(function(p, d) {
+        return {
+            min : pv.min([p.min, d.date]),
+            max : pv.max([p.max, d.date])
+        }
+    }, {min : Infinity, max : -Infinity});
+    alpha.domain(limits.min, limits.max);
+}
+
 function addChildNode(data, parent, type, value, random) {
     var i = data.nodes.length;
 
@@ -21,10 +31,12 @@ function addChildNode(data, parent, type, value, random) {
             linkDegree: 0,
             type: type,
             nodeValue: value,
+            date : type == 1 ? pv.max([new Date(value.published).getTime(), new Date(value.updated).getTime()]) : parent.date,
             index: i
         });
         idUser = i;
         //type != 1 && (data.hash[id] = i);
+        callAlpha(data);
         sim.particle(data.nodes[idUser]);
     //}
 
@@ -47,8 +59,8 @@ function addChildNode(data, parent, type, value, random) {
 }
 
 function parsePostActivity(data, parent, depth, type) {
-    depth = depth || 0;
     function run(data, parent, depth, type) {
+        depth = depth || 0;
         return function(pluses) {
             if (pluses.hasOwnProperty("error")) {
                 console.log(pluses);
@@ -64,24 +76,24 @@ function parsePostActivity(data, parent, depth, type) {
                     item);
                 if (depth > 0 && !data.hash.hasOwnProperty(id)) {
                     data.hash[id] = -1;
-                    parseUserActivity(data, id, plusar.Count, depth - 1);
+                    parseUserActivity(data, id, plusar.Count, depth);
                 }
             });
         }
     }
 
-    if (parent.nodeValue.id) {
+    if (parent.nodeValue.id && plusar.maxResults[type]) {
         var request;
         if (type == "replies") {
             request = gapi.client.plus.comments.list({
-                maxResults : plusar.MaxResComment,
+                maxResults : plusar.maxResults[type],
                 //"fields":"items(actor(displayName,id),id,inReplyTo/id,published,updated)",
                 activityId : parent.nodeValue.id
             });
         }
         else {
             request = gapi.client.plus.people.listByActivity({
-                maxResults : plusar.MaxResPeople,
+                maxResults : plusar.maxResults[type],
                 //"fields":"items(displayName,id),selfLink",
                 activityId : parent.nodeValue.id,
                 collection : type
@@ -113,15 +125,18 @@ function parseUserActivity(data, id, count, depth, nextPage) {
                         linkDegree : 0,
                         type : 0,
                         nodeValue : item.actor,
+                        date : pv.max([new Date(item.published).getTime(), new Date(item.updated).getTime()]),
                         index : i
                     });
                     idUser = i;
                     data.hash[item.actor.id] = i;
+                    callAlpha(data);
                     sim.particle(data.nodes[i]);
                 }
                 var parent = data.nodes[idUser];
+                parent.date = pv.max([parent.date, new Date(item.published).getTime(), new Date(item.updated).getTime()]);
 
-                i = addChildNode(data, parent, 1, item, false);
+                i = addChildNode(data, parent, 1, item, plusar.useDepth);
 
                 if (item.object) {
                     ["replies", "plusoners", "resharers"].forEach(function(l, j) {

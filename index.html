@@ -70,7 +70,8 @@
         var w = 0,
             h = 0;
 
-        var force = pv.Force.spring().links(data.links);
+        var force = pv.Force.spring().links(data.links),
+            alpha = pv.Scale.linear().range(.05, .4);
 
         var sim = pv.simulation(data.nodes)
             .constraint(pv.Constraint.collision(function(d) { return d.r * 1.2 } ))
@@ -92,11 +93,12 @@
             ).domain(0, 4);
 
             var vis = new pv.Panel()
+                    .cursor("move")
                     .width(w)
                     .height(h)
                     .fillStyle("rgba(255,255,255,0.01)")//"#f9f9f9")
                     .event("mousedown", pv.Behavior.pan())
-                    .event("mousewheel", pv.Behavior.zoom());
+                    .event("mousewheel", pv.Behavior.zoom(1/12));
 
             if (typeof params.showedge != "undefined")
                 vis.add(pv.Panel)
@@ -107,19 +109,68 @@
                     .top(function(d) { return d.y; })
                     .strokeStyle("rgba(0, 0, 0, .1)");
 
+            function fill(i, d) {
+                var a = d.type != 1 && plusar.gids.indexOf(d.nodeValue.id) > -1 ? .8 : alpha(d.date),
+                    bc = isChecked(d) ? colors(d.type).alpha(.8) : (data.selected ? pv.color("#666") : colors(d.type)).alpha(a);
+                return i ? bc
+                         : colors(d.type).darker().darker().darker().darker();
+            }
+
+            function isChecked(d) {
+                return d.fix
+                        || (
+                        d.type != 1
+                                && data.selected
+                                && (
+                                d.nodeValue.hasOwnProperty("actor")
+                                        ? d.nodeValue.actor
+                                        : d.nodeValue
+                                ).id == data.selected
+                        );
+            }
+
+            function linew(i, d) {
+                return i
+                       ? d.r
+                       * (
+                            isChecked(d)
+                            ? 0.06
+                            : 0.02
+                         )
+                       : 0;
+            }
+
+            function stroke(i, d) {
+                return isChecked(d) ? "#666" : this.fillStyle().alpha(1).darker().darker().darker().darker();
+            }
+
             vis.add(pv.Panel)
                 .data(data.nodes)
+                .event("mousedown", function(d) {
+                    d["fix"] ? (delete d["fix"]) : (d.fix = 1);
+                    delete data["selected"];
+                    if (d["fix"]) {
+                        data.selected = (d.nodeValue.hasOwnProperty("actor")
+                            ? d.nodeValue.actor
+                            : d.nodeValue
+                        ).id;
+                        data.nodes.forEach(function(l) {
+                            l.index != d.index && delete l["fix"];
+                        });
+                    }
+                })
             .add(pv.Dot)
                 .data(pv.range(2))
+                .cursor("pointer")
                 .left(function(i, d) { return d.x })
                 .top(function(i, d) { return d.y })
                 .title(function(i, d) {return i ?
                     (d.type == 1 ? d.nodeValue.title :
-                    (d.nodeValue.hasOwnProperty("actor") ? d.nodeValue.actor : d.nodeValue).displayName) : ""; })
-                .radius(function(i, d) { return i ? d.r : d.r * 0.02; })
-                .lineWidth(function(i, d) { return i ? d.r * 0.02 : 0; })
-                .fillStyle(function(i, d) { return i ? colors(d.type).alpha(d.type == 0 && data.me.id == d.nodeValue.id ?.8 : .4) : colors(d.type).darker().darker().darker().darker(); })
-                .strokeStyle(function(i, d) { return this.fillStyle().darker().darker().darker().darker(); });
+                    (d.nodeValue.hasOwnProperty("actor") ? d.nodeValue.actor : d.nodeValue).displayName) : alpha(d.date); })
+                .radius(function(i, d) { return i ? d.r : d.r * 0.05; })
+                .lineWidth(linew)
+                .fillStyle(fill)
+                .strokeStyle(stroke);
 
             /*vis.add(pv.Panel)
                 .data(data.nodes)
@@ -130,12 +181,19 @@
                 .top(function(i, d) { return d.y + i * 10 * d.vy });*/
 
             function firstRequest() {
-                gid = (params.gids ? params.gids : null ) || "me";
-                plusar.Count = params.count || 10;
-                plusar.Depth = params.depth || 1;
-                plusar.MaxResComment = params.ccount || 10;
-                plusar.MaxResPeople = params.pcount || 10;
-                plusar.asyncForEach(gid.split(";"), function(id) {
+                gid = (params.gids ? params.gids : null ) || data.me.id;
+
+                plusar.Count = params.count || plusar.Count || 10;
+                plusar.Depth = params.depth || plusar.Depth || 1;
+
+                plusar.maxResults.replies = params.ccount || plusar.maxResults.replies || 10;
+                plusar.maxResults.plusoners = params.ppcount || plusar.maxResults.plusoners || 10;
+                plusar.maxResults.resharers = params.rpcount || plusar.maxResults.resharers || 10;
+
+                plusar.useDepth = plusar.Depth < 2;
+                plusar.gids = gid.split(";");
+                plusar.gids.indexOf("me") > -1 && (plusar.gids[plusar.gids.indexOf("me")] = data.me.id);
+                plusar.asyncForEach(plusar.gids, function(id) {
                     parseUserActivity(data, id, plusar.Count, plusar.Depth);
                 });
             }
@@ -156,7 +214,7 @@
         function handleClientLoad() {
             gapi.client.setApiKey(conf.API_KEY);
             window.setTimeout(function() {
-                checkAuth(makeApiCall)
+                (plusar.useKey && makeApiCall()) || checkAuth(makeApiCall);
             }, 1);
         }
 
