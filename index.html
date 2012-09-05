@@ -21,6 +21,7 @@
 <html>
 <head>
     <meta charset='utf-8'/>
+    <script type="text/javascript" src="d3.v2.js"></script>
     <script type="text/javascript" src="protovis.js"></script>
     <script type="text/javascript" src="global.js"></script>
     <script type="text/javascript" src="conf.js"></script>
@@ -68,7 +69,11 @@
         data.hash = data.hash || {};
 
         var w = 0,
-            h = 0;
+            h = 0,
+            renderTimer,
+            calcTimer;
+
+        var vis;
 
         var force = pv.Force.spring().links(data.links),
             alpha = pv.Scale.linear().range(.05, .4);
@@ -92,7 +97,7 @@
                 "#FF3F46"
             ).domain(0, 4);
 
-            var vis = new pv.Panel()
+            vis = new pv.Panel()
                     .cursor("move")
                     .width(w)
                     .height(h)
@@ -201,12 +206,27 @@
             var now = Date.now();
 
             firstRequest();
+            runRenderTimer();
+            runCalcTimer();
+        }
 
-            window.renderTimer = setInterval(function() {
+        function closeInterval(timer) {
+            if (window[timer]) {
+                clearInterval(window[timer]);
+                window[timer] = undefined;
+            }
+        }
+
+        function runRenderTimer() {
+            closeInterval(renderTimer);
+            renderTimer = setInterval(function() {
                 vis.render();
             }, 12);
+        }
 
-            window.calcTimer = setInterval(function() {
+        function runCalcTimer() {
+            closeInterval(calcTimer);
+            calcTimer = setInterval(function() {
                 sim.step();
             }, 12);
         }
@@ -226,14 +246,34 @@
                 });
                 request.execute(function(resp) {
                     data.me = resp;
-                    var heading = document.createElement('h4');
-                    var image = document.createElement('img');
-                    image.src = resp.image.url;
-                    heading.appendChild(image);
-                    heading.appendChild(document.createTextNode(resp.displayName));
 
-                    document.getElementById('userinfo').appendChild(heading);
+                    d3.select("#userinfo")
+                        .call(function(div) {
+                            div.append("h4")
+                                .text(resp.displayName)
+                                .append("img")
+                                .attr("src", resp.image.url);
 
+                            div.selectAll(".trButton")
+                                .data(["calc", "render"])
+                                .enter()
+                                .append("span")
+                                    .attr("class", "trButton")
+                                    .text(String)
+                                    .on("click", function(d){
+                                        if (window[d + "Timer"]) {
+                                            closeInterval(d + "Timer");
+                                            d3.select(this).classed("paused", true)
+                                        }
+                                        else {
+                                            if (d == "calc")
+                                                runCalcTimer();
+                                            else
+                                                runRenderTimer();
+                                            d3.select(this).classed("paused", false)
+                                        }
+                                    });
+                        });
                     startFlow();
                 });
             });
