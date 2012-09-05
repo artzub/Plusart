@@ -136,7 +136,7 @@ function parseUserActivity(data, id, count, depth, nextPage) {
                 var parent = data.nodes[idUser];
                 parent.date = pv.max([parent.date, new Date(item.published).getTime(), new Date(item.updated).getTime()]);
 
-                i = addChildNode(data, parent, 1, item, plusar.useDepth);
+                i = addChildNode(data, parent, 1, item, plusar.useRandom);
 
                 if (item.object) {
                     ["replies", "plusoners", "resharers"].forEach(function(l, j) {

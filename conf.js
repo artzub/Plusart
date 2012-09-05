@@ -12,5 +12,5 @@ var bpls = true,
 plusar.Count = 10;
 plusar.Depth = 1;
 plusar.useKey = false;
-plusar.useDepth = true;
+plusar.useRandom = true;
 plusar.maxResults = { replies : 10, plusoners : 10, resharers : 10 };
