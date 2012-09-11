@@ -56,7 +56,8 @@
         var w = 0,
             h = 0,
             renderTimer,
-            calcTimer;
+            calcTimer,
+            dgraphTimer;
 
         var vis;
 
@@ -67,7 +68,7 @@
             .constraint(pv.Constraint.collision(function(d) { return d.r * 1.2 } ))
             .force(pv.Force.drag(.07))
             .force(force)
-            .force(pv.Force.charge(-4))
+            .force(pv.Force.charge())
             .stabilize();
 
         function startFlow() {
@@ -107,7 +108,7 @@
             }
 
             function isChecked(d) {
-                return d.fix
+                return d.clicked
                         || (
                         d.type != 1
                                 && data.selected
@@ -136,20 +137,21 @@
 
             vis.add(pv.Panel)
                 .data(data.nodes)
-                .event("mousedown", function(d) {
-                    d["fix"] ? (delete d["fix"]) : (d.fix = 1);
+                .event("click", function(d) {
+                    d["clicked"] ? (delete d["clicked"]) : (d.clicked = 1);
                     delete data["selected"];
-                    if (d["fix"]) {
+                    if (d["clicked"]) {
                         data.selected = (d.nodeValue.hasOwnProperty("actor")
                             ? d.nodeValue.actor
                             : d.nodeValue
                         ).id;
                         data.nodes.forEach(function(l) {
-                            l.index != d.index && delete l["fix"];
+                            l.index != d.index && delete l["clicked"];
                         });
                     }
                     vis.render();
                 })
+                .event("mousedown", pv.Behavior.drag())
             .add(pv.Dot)
                 .data(pv.range(2))
                 .cursor("pointer")
@@ -174,12 +176,12 @@
             function firstRequest() {
                 gid = (params.gids ? params.gids : null ) || data.me.id;
 
-                plusar.Count = params.count || plusar.Count || 10;
-                plusar.Depth = params.depth || plusar.Depth || 1;
+                plusar.Count = parseInt(params.count || plusar.Count || 10);
+                plusar.Depth = parseInt(params.depth || plusar.Depth || 1);
 
-                plusar.maxResults.replies = params.ccount || plusar.maxResults.replies || 10;
-                plusar.maxResults.plusoners = params.ppcount || plusar.maxResults.plusoners || 10;
-                plusar.maxResults.resharers = params.rpcount || plusar.maxResults.resharers || 10;
+                plusar.maxResults.replies = parseInt(params.ccount || plusar.maxResults.replies || 10);
+                plusar.maxResults.plusoners = parseInt(params.ppcount || plusar.maxResults.plusoners || 10);
+                plusar.maxResults.resharers = parseInt(params.rpcount || plusar.maxResults.resharers || 10);
 
                 plusar.gids = gid.split(";");
                 plusar.useRandom = plusar.Depth < 2 || plusar.gids.length > 1;
@@ -198,29 +200,145 @@
             var now = Date.now();
 
             firstRequest();
-            runRenderTimer();
-            runCalcTimer();
+            run_renderTimer();
+            run_calcTimer();
         }
 
         function closeInterval(timer) {
-            if (window[timer]) {
+            if (timer == "dgraphTimer"){
+                remakeSim();
+                window[timer] = undefined;
+            }
+            else if (window[timer]) {
                 clearInterval(window[timer]);
                 window[timer] = undefined;
             }
         }
 
-        function runRenderTimer() {
+        function run_renderTimer() {
             closeInterval(renderTimer);
             renderTimer = setInterval(function() {
                 vis.render();
             }, 12);
         }
 
-        function runCalcTimer() {
+        function run_calcTimer() {
             closeInterval(calcTimer);
             calcTimer = setInterval(function() {
                 sim.step();
             }, 12);
+        }
+
+        Array.prototype.remove = function() {
+            var what, a = arguments, L = a.length, ax;
+            while(L && this.length){
+                what = a[--L];
+                while((ax = this.indexOf(what))!= -1){
+                    this.splice(ax, 1);
+                }
+            }
+            return this;
+        }
+
+        function remakeLink(parent, old_parent, prop, delprop) {
+            prop = prop || "target";
+            data.links.filter(function(d) {
+                return d[prop] == old_parent;
+            }).forEach(function(d) {
+                var item = d[prop == "target" ? "sourceNode" : "targetNode"];
+                var id = (item.nodeValue.hasOwnProperty("actor") ? item.nodeValue.actor : item.nodeValue).id;
+                var index = data.directHash[id];
+                if (typeof index != "undefined") {
+                    if(!data.directHash[index + "_" + parent.index]
+                    && !data.directHash[parent.index + "_" + index]) {
+                        data.directHash[index + "_" + parent.index] = data.links.length;
+                        var obj = {};
+                        obj[prop] = parent.index;
+                        obj[prop + "Node"] = parent;
+                        obj[prop == "target" ? "source" : "target"] = index;
+                        obj[prop == "target" ? "sourceNode" : "targetNode"] = data.nodes[index];
+                        data.links.push(obj);
+                    }
+                    parent = data.nodes[index];
+                    incSize(parent);
+                }
+                decSize(d[prop + "Node"]);
+                d[prop] = parent.index;
+                d[prop + "Node"] = parent;
+                incSize(parent);
+            });
+            deleteLinks(old_parent, prop == "source" ? "targetNode" : "sourceNode");
+            force.links(data.links);
+        }
+
+        function remakeSim() {
+        }
+
+        function deleteLinks(parent, prop) {
+            data.links.filter(function (d, i) {
+                    return d.source == parent && ((d.i = i) || true);
+                })
+                .map(function (d) {
+                    decSize(d.targetNode);
+                    return d.i;
+                })
+                .forEach(function (d) {
+                    data.links.splice(d, 1);
+                });
+        }
+
+        function toDirectGraph() {
+            data.directHash = {};
+
+            plusar.asyncForEach(data.nodes.slice(0)
+                    .sort(function(a, b) {
+                        return d3.ascending(b.linkDegree, a.linkDegree);
+                    })
+                    .sort(function(a, b) {
+                        return d3.ascending(b.date, a.date);
+                    })
+                    .sort(function(a, b) {
+                        return d3.ascending(b.type, a.type);
+            }), function(item) {
+                var id = (item.nodeValue.hasOwnProperty("actor") ? item.nodeValue.actor : item.nodeValue).id;
+                var index = data.directHash[id];
+                if (typeof index == "undefined") {
+                    index = item.index;
+                    data.directHash[id] = index;
+                    item.linkDegree = -1;
+                    item.r = 6;
+                }
+                var parent = data.nodes[index];
+                incSize(parent);
+
+                if (item.type == 1) {
+                    /*item.r = 4;
+                    item.linkDegree = 0;*/
+
+                    remakeLink(parent, item.index);
+                } else if (parent.index != item.index) {
+                    item.r = 4;
+                    item.linkDegree = 0;
+
+                    remakeLink(parent, item.index);
+
+                    /*deleteLinks(item.index);
+
+                    data.links.push({
+                        source: item.index,
+                        sourceNode: item,
+                        target: parent.index,
+                        targetNode: parent
+                    });
+                    force.links(data.links);*/
+                }
+            });
+        }
+
+        function run_dgraphTimer() {
+            //closeInterval(dgraphTimer);
+            dgraphTimer = 1;
+            toDirectGraph();
         }
 
         function handleClientLoad() {
@@ -237,12 +355,11 @@
                         .text("►");
             }
             else {
-                if (d == "calc")
-                    runCalcTimer();
-                else
-                    runRenderTimer();
-                d3.select(this).classed("paused", false)
-                        .text("■")
+                if (window["run_" + d + "Timer"]) {
+                    window["run_" + d + "Timer"]();
+                    d3.select(this).classed("paused", false)
+                        .text("■");
+                }
             }
         }
 
@@ -272,19 +389,19 @@
                     d3.select("#menu")
                         .call(function(div) {
                             div.selectAll(".trButton")
-                                .data(["calc", "render"])
+                                .data(["calc", "render", "dgraph"])
                                 .enter()
                                 .append("span")
                                     .attr("class", "trButton")
                                     .text(String)
                                     .append("span")
-                                    .text("■")
+                                    .attr("class", function(d) { return d == "dgraph" ? "paused" : ""})
+                                    .text(function(d) { return d3.select(this).classed("paused") ? "►" : "■"; })
                                     .attr("id", function(d) {
                                         return d + "Timer";
                                     })
                                     .on("click", clickButton);
                         });
-
                     startFlow();
                 });
             });

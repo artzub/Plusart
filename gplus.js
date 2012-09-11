@@ -7,6 +7,11 @@ function incSize(item) {
     item.r++;
 }
 
+function decSize(item) {
+    item.linkDegree--;
+    item.r--;
+}
+
 function callAlpha(data) {
     limits = data.nodes.reduce(function(p, d) {
         return {
