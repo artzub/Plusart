@@ -1,250 +1,182 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title></title>
-    <script type="text/javascript" src="protovis.js"></script>
-</head>
-<body>
-<script type="text/javascript+protovis">
-    var w = 550,
-        h = 440;
-    var vis = new pv.Panel()
-        .width(w)
-        .height(h)
-        .fillStyle('#004444');
-    var dotRadius = w / 75;
-    var numDots = 50;
-    var vmag = 1;
-    var rmax = 50;
-    var goal = 10;
-    var dotsBurst = 0;
+<script type="text/javascript" src="d3.v2.js"></script>
+<style type="text/css">
+.node {
+   stroke: black;
+   stroke-width: 1.5px;
+}
 
-    /// Mouse bubble
+line.link {
+   stroke: #999;
+   stroke-opacity: .6;
+}
+</style>
+<script type="text/javascript">
+var w, h, fill, vis;
 
-    var bub = {
-        x    : 0,
-        y    : 0,
-        r    : 0,
-        dr   : 0,
-        c    : 'rgba(255, 255, 255, 0.5)',
-        vis  : 0,
-        burst: 0
-    };
+function initVisualization() {
+   w = d3.select("#graph")[0][0].offsetWidth;
+   h = d3.select("#graph")[0][0].offsetHeight;
+   fill = d3.scale.category10();
+   
+   vis = d3.select("#graph")
+         .append("svg:svg")
+         .attr("width", "100%")
+         .attr("height", "100%")
+         .attr("pointer-events", "all")
+         .append("svg:g")
+         .call(d3.behavior.zoom().on("zoom", redraw))
+         .append("svg:g");
 
-    var bubble = vis.add(pv.Dot)
-        .fillStyle(bub.c)
-        .strokeStyle(bub.c)
-        .left(function() { return bub.x })
-        .top(function() { return bub.y })
-        .visible(function() { return bub.vis })
-        .radius(function() {
-            var R = bub.r;
+   vis.style("opacity", 1e-6)
+         .transition()
+         .duration(1000)
+         .style("opacity", 1);
 
-            // expand the bubble
-            if (bub.dr > 0) {
-                if (bub.r < rmax) {
-                    bub.r += 0.5 * bub.dr * (0.1 + Math.cos(Math.PI/2
-* bub.r/rmax));
-                } else {
-                    bub.dr = -3;
-                }
-            }
-            // contract the bubble
-            else {
-                if (bub.r > 0) {
-                    bub.r += bub.dr;
-                } else {
-                    bub.dr = 0;
-                    bub.r = 0;
-                    bub.vis = 0;
-                    bub.burst = 1;
-                }
-            }
+}
 
-            if (bub.dr && bub.vis) {
-                // that was fun, let's do it again!
-                setTimeout(function() {bubble.render() }, 25);
-            }
+function redraw() {
+   vis.attr("transform",
+         "translate(" + d3.event.translate + ")"
+         + "scale(" + d3.event.scale + ")");
+}
 
-            return R;
-         });
+function collide(node) {
+     var nx1 = node.x,
+         nx2 = node.x + node.width,
+         ny1 = node.y,
+         ny2 = node.y + node.height;
 
-    vis.event('click', function() {
-        if (!bub.burst) {
-            var m = vis.mouse();
-            bub.x = m.x;
-            bub.y = m.y;
-            bub.dr = 2;
-            bub.r = rmax / 10;
-            bub.vis = 1;
+     return function(quad, x1, y1, x2, y2) {
+       if (quad.point && (quad.point !== node)) {
+          if (node.x <= quad.point.x) {
+             var dist = quad.point.x - node.x; 
+             if (dist < node.width) {
+                node.px -= 5;
+             }
+          } else {
+             var dist = node.x -quad.point.x; 
+             if (dist < quad.point.width) {
+                node.px += 5;
+             }
+          }
+          if (node.y <= quad.point.y) {
+             var dist = quad.point.y - node.y; 
+             if (dist < node.height) {
+                node.py -= 5;
+             }
+          } else {
+             var dist = node.y -quad.point.y; 
+             if (dist < quad.point.height) {
+                node.py +=  5;
+             }
+          }
+       }
+       return x1 > nx2
+           || x2 < nx1
+           || y1 > ny2
+           || y2 < ny1;
+     };
+};
 
-            bubble.render();
-        }
-    });
+var data;
 
+function startVisualization(json) {
+   data = json; 
+   
+   vis.selectAll("line.link").remove();
+   vis.selectAll("rect.node").remove();
+   
+   var force = d3.layout.force()
+         .gravity(1)
+         .charge(-1000)
+         .linkDistance(500)
+         .nodes(json.nodes)
+         .links(json.links)
+         .size([w, h])
+         .start();
+   
+   var link = vis.selectAll("line.link")
+         .data(json.links)
+         .enter().append("svg:line")
+         .attr("class", "link")
+         .attr("x1", function(d) { return d.source.x; })
+         .attr("y1", function(d) { return d.source.y; })
+         .attr("x2", function(d) { return d.target.x; })
+         .attr("y2", function(d) { return d.target.y; });
 
-    /// Bouncing dots
+   var node = vis.selectAll("rect.node")
+         .data(json.nodes)
+         .enter().append("svg:rect")
+         .attr("class", "node")
+         .attr("x", function(d) { return d.x; })
+         .attr("y", function(d) { return d.y; })
+         .attr("id", function(d) { return d.index; })
+         .attr("width", 50)
+         .attr("height", 14)
+         .style("fill", function(d) { return fill(d.group); })
+         .call(force.drag);
 
-    var x = pv.Scale.linear(0,1).range(dotRadius, w - dotRadius),
-        y = pv.Scale.linear(0,1).range(dotRadius, h - dotRadius),
-        c = pv.Scale.linear(-vmag,0,vmag).range('red','green','blue');
+   node.append("svg:title")
+         .text(function(d) { return d.iri; });
+   
+   vis.selectAll("text")
+         .data(json.nodes)
+         .enter().append("svg:text")
+         .attr("dx", 2)
+         .attr("dy", 12)
+         .attr("id", function(d) { return d.index + "_text"; })
+         .text(function(d) { return d.label; });
+   
+   node = vis.selectAll("rect.node, text");
+   
+   vis.selectAll("rect.node").each(function(node) {
+      var text = document.getElementById(this.id + "_text");
+      var bBox = text.getBBox();
+      this.setAttributeNS(null, "width", bBox.width + 4);
+      this.setAttributeNS(null, "height", bBox.height);
+      data.nodes[this.id].width = bBox.width + 4;
+      data.nodes[this.id].height = bBox.height;
+   });
+   
+   var graph = d3.select("#graph")[0][0];
 
-    var bouncingDots = pv.range(numDots)
-        .map(function(i) {
-            var vx0 = Math.cos(2 * Math.PI * Math.random());
-            var vy0 = Math.sin(2 * Math.PI * Math.random());
-            var V = Math.sqrt(vx0 * vx0 + vy0 * vy0);
-            vx0 *= vmag / V;
-            vy0 *= vmag / V;
-            var xpos = x(Math.random());
-            var ypos = y(Math.random());
+   force.on("tick", function() {
+      var w = graph.offsetWidth;
+      var h = graph.offsetHeight;
 
-            // pv.Particle
-            return {
-                x: xpos,
-                y: ypos,
-                vx: vx0,
-                vy: vy0,
-                r: dotRadius,
-                dr: 0,
-                px: xpos - vx0,
-                py: ypos - vy0,
-                c: c(vx0),
-                vis: 1,
-                burst: 0
-            };
-        });
+      force.size([w, h]);
+      
+        var q = d3.geom.quadtree(data["nodes"]),
+         i = 0,
+         n = data["nodes"].length;
 
-    var bouncing = vis.add(pv.Dot)
-        .data(bouncingDots)
-        .visible(function(d) {
-            return d.vis;
-        })
+     while (++i < n) {
+      q.visit(collide(data["nodes"][i]));
+     }
 
-        .left(function(d) {
-            var dot = bouncingDots[this.index];
+      link.attr("x1", function(d) { return d.source.x; })
+            .attr("y1", function(d) { return d.source.y; })
+            .attr("x2", function(d) { return d.target.x; })
+            .attr("y2", function(d) { return d.target.y; });
 
-            if (dot.x < dotRadius || dot.x > w - dotRadius) {
-                var x = dot.x;
-                dot.x = dot.px;
-                dot.px = x;
-                dot.vx = -dot.vx;
-            }
+      node.attr("x", function(d) { return d.x = Math.max(50, Math.min(w - 50,d.x)); })
+            .attr("y", function(d) { return d.y = Math.max(10, Math.min(h - 10,d.y)); });
+});
+   
+   
+}
 
-            return dot.x;
-        })
-        .top(function(d) {
-            var dot = bouncingDots[this.index];
+function run() {
+   initVisualization();
+   d3.json("data.json", startVisualization);
+}
 
-            if (dot.y < dotRadius || dot.y > h - dotRadius) {
-                var y = dot.y;
-                dot.y = dot.py;
-                dot.py = y;
-                dot.vy = -dot.vy;
-            }
-
-            return dot.y;
-        })
-        .radius(function(d) {
-            var bouncingDot = bouncingDots[this.index];
-            if (bouncingDot.burst) {
-                return 0;
-            }
-
-            var distFromBub = Math.sqrt(
-                Math.pow(bouncingDot.x-bub.x, 2) +
-Math.pow(bouncingDot.y-bub.y, 2)
-            );
-            var touchedBubble = bub.vis && !bouncingDot.dr &&
-bouncingDot.vis
-                && distFromBub <= bouncingDot.r + bub.r;
-
-            if (bouncingDot.vis && bouncingDot.dr) {
-                // xxx: could be done better....
-                var len = bouncingDots.length;
-                for (var i = 0; i < len; ++i) {
-                    if (i == this.index) {
-                        continue;
-                    }
-                    var otherDot = bouncingDots[i];
-                    var distFromDot = Math.sqrt(
-                        Math.pow(bouncingDot.x-otherDot.x, 2) +
-Math.pow(bouncingDot.y-otherDot.y, 2)
-                    );
-                    var touchedDot = otherDot.vis && bouncingDot.dr &&
-bouncingDot.vis
-                        && distFromDot <= bouncingDot.r + otherDot.r;
-                    if (touchedDot && otherDot.vis && !otherDot.dr) {
-                        otherDot.dr = 2;
-                        otherDot.r = rmax / 10;
-
-                        otherDot.vx = 0;
-                        otherDot.vy = 0;
-                        otherDot.px = otherDot.x;
-                        otherDot.py = otherDot.y;
-
-                        dotsBurst++;
-                    }
-                }
-            }
-
-            if (touchedBubble) {
-                bouncingDot.dr = 2;
-                bouncingDot.r = rmax / 10;
-                bouncingDot.vis = 1;
-
-                bouncingDot.vx = 0;
-                bouncingDot.vy = 0;
-                bouncingDot.px = bouncingDot.x;
-                bouncingDot.py = bouncingDot.y;
-
-                dotsBurst++;
-            }
-
-            if (bouncingDot.dr == 0 && !bouncingDot.burst) {
-                return dotRadius;
-            }
-
-            var R = bouncingDot.r;
-
-            // expand the dot
-            if (bouncingDot.dr > 0) {
-                if (bouncingDot.r < rmax) {
-                    bouncingDot.r += 0.5 * bouncingDot.dr * (0.1 +
-Math.cos(Math.PI/2 * R/rmax));
-                } else {
-                    bouncingDot.dr = -3;
-                }
-            }
-            // contract the dot
-            else {
-                if (bouncingDot.r > 0) {
-                    bouncingDot.r += bouncingDot.dr;
-                } else {
-                    bouncingDot.dr = 0;
-                    bouncingDot.r = 0;
-                    bouncingDot.vis = 0;
-                    bouncingDot.burst = 1;
-                }
-            }
-
-            return R;
-        })
-        .fillStyle(function(d) d.c)
-        .strokeStyle(function(d) d.c);
-
-    vis.render();
-
-    var sim = new pv.Simulation(bouncingDots);
-    setInterval(function() {
-        sim.step();
-        if (dotsBurst > goal) {
-            vis.fillStyle('#aaffaa');
-            vis.render();
-        } else {
-            bouncing.render();
-        }
-    }, 25);
 </script>
+
+<body onload="run()">
+<div id="graph"></div>
 </body>
 </html>

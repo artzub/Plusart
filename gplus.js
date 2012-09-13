@@ -4,19 +4,21 @@ function urlListActivities(id) {
 
 function incSize(item) {
     item.linkDegree++;
+    item.weight++;
     item.r++;
 }
 
 function decSize(item) {
     item.linkDegree--;
+    item.weight--;
     item.r--;
 }
 
 function callAlpha(data) {
     limits = data.nodes.reduce(function(p, d) {
         return {
-            min : pv.min([p.min, d.date]),
-            max : pv.max([p.max, d.date])
+            min : d3.min([p.min, d.date]),
+            max : d3.max([p.max, d.date])
         }
     }, {min : Infinity, max : -Infinity});
     alpha.domain(limits.min, limits.max);
@@ -30,19 +32,20 @@ function addChildNode(data, parent, type, value, random) {
 
     //if (typeof idUser == "undefined" || type == 1) {
         data.nodes.push({
-            x: random ? w * Math.random() : parent.x + (parent.r * 2) * Math.cos(2 * Math.PI * Math.random()),
-            y: random ? h * Math.random() : parent.y + (parent.r * 2) * Math.sin(2 * Math.PI * Math.random()),
+            x: random ? w/2 * Math.random() * (Math.random() * 2 ? -1 : 1) : parent.x + (parent.r * 2) * Math.cos(2 * Math.PI * Math.random()),
+            y: random ? h/2 * Math.random() * (Math.random() * 2 ? -1 : 1) : parent.y + (parent.r * 2) * Math.sin(2 * Math.PI * Math.random()),
             r: 4,
             linkDegree: 0,
             type: type,
             nodeValue: value,
-            date : type == 1 ? pv.max([new Date(value.published).getTime(), new Date(value.updated).getTime()]) : parent.date,
+            date : type == 1 ? d3.max([new Date(value.published).getTime(), new Date(value.updated).getTime()]) : parent.date,
             index: i
         });
         idUser = i;
         //type != 1 && (data.hash[id] = i);
         callAlpha(data);
-        sim.particle(data.nodes[idUser]);
+        if (plusar.redraw)
+            plusar.redraw();
     //}
 
     if (type != 1 && typeof data.hash[id] != "undefined" && data.hash[id] > 0)
@@ -53,12 +56,15 @@ function addChildNode(data, parent, type, value, random) {
 
     //if (!data.hash.hasOwnProperty(idUser + "_" + parent.index)) {
         data.links.push({
-            source: idUser,
+            source: data.nodes[idUser],
+            sourceIndex : idUser,
             sourceNode: data.nodes[idUser],
-            target: parent.index,
+            target: parent,
+            targetIndex : parent.index,
             targetNode: parent
         });
-        force.links(data.links);
+        if (plusar.redraw)
+            plusar.redraw();
     //}
     return idUser;
 }
@@ -124,22 +130,23 @@ function parseUserActivity(data, id, count, depth, nextPage) {
                 var idUser = data.hash[item.actor.id];
                 if (typeof idUser == "undefined" || idUser == -1) {
                     data.nodes.push({
-                        x : w * Math.random(),
-                        y : h * Math.random(),
+                        x : w/2 * Math.random() * (Math.random() * 2 ? -1 : 1),
+                        y : h/2 * Math.random() * (Math.random() * 2 ? -1 : 1),
                         r : 7,
                         linkDegree : 0,
                         type : 0,
                         nodeValue : item.actor,
-                        date : pv.max([new Date(item.published).getTime(), new Date(item.updated).getTime()]),
+                        date : d3.max([new Date(item.published).getTime(), new Date(item.updated).getTime()]),
                         index : i
                     });
                     idUser = i;
                     data.hash[item.actor.id] = i;
                     callAlpha(data);
-                    sim.particle(data.nodes[i]);
+                    if (plusar.redraw)
+                        plusar.redraw();
                 }
                 var parent = data.nodes[idUser];
-                parent.date = pv.max([parent.date, new Date(item.published).getTime(), new Date(item.updated).getTime()]);
+                parent.date = d3.max([parent.date, new Date(item.published).getTime(), new Date(item.updated).getTime()]);
 
                 i = addChildNode(data, parent, 1, item, plusar.useRandom);
 
