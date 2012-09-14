@@ -4,24 +4,16 @@ function urlListActivities(id) {
 
 function incSize(item) {
     item.linkDegree++;
-    item.weight++;
     item.r++;
 }
 
 function decSize(item) {
     item.linkDegree--;
-    item.weight--;
     item.r--;
 }
-
+var alpha = d3.scale.ordinal().range([.08, .4]);
 function callAlpha(data) {
-    limits = data.nodes.reduce(function(p, d) {
-        return {
-            min : d3.min([p.min, d.date]),
-            max : d3.max([p.max, d.date])
-        }
-    }, {min : Infinity, max : -Infinity});
-    alpha.domain(limits.min, limits.max);
+    alpha.domain(d3.extent(data.nodes.map(function(d) { return d.date; }).sort(function(a , b) { return a - b; })));
 }
 
 function addChildNode(data, parent, type, value, random) {
@@ -32,8 +24,8 @@ function addChildNode(data, parent, type, value, random) {
 
     //if (typeof idUser == "undefined" || type == 1) {
         data.nodes.push({
-            x: random ? w/2 * Math.random() * (Math.random() * 2 ? -1 : 1) : parent.x + (parent.r * 2) * Math.cos(2 * Math.PI * Math.random()),
-            y: random ? h/2 * Math.random() * (Math.random() * 2 ? -1 : 1) : parent.y + (parent.r * 2) * Math.sin(2 * Math.PI * Math.random()),
+            x: random ? w/2 * Math.random() * (Math.round((Math.random() * 2) % 2) ? -1 : 1) : parent.x + (parent.r * 2) * Math.cos(2 * Math.PI * Math.random()),
+            y: random ? h/2 * Math.random() * (Math.round((Math.random() * 2) % 2) ? -1 : 1) : parent.y + (parent.r * 2) * Math.sin(2 * Math.PI * Math.random()),
             r: 4,
             linkDegree: 0,
             type: type,
@@ -45,7 +37,7 @@ function addChildNode(data, parent, type, value, random) {
         //type != 1 && (data.hash[id] = i);
         callAlpha(data);
         if (plusar.redraw)
-            plusar.redraw();
+            plusar.redraw(data.nodes[idUser]);
     //}
 
     if (type != 1 && typeof data.hash[id] != "undefined" && data.hash[id] > 0)
@@ -119,8 +111,8 @@ function parseUserActivity(data, id, count, depth, nextPage) {
     function run(data, id, count, depth) {
         depth = depth || 0;
         return function(activities) {
-            if (activities.hasOwnProperty("error")) {
-                console.log(activities);
+            if (!activities || activities.hasOwnProperty("error")) {
+                console.log(activities || { error: "no object"});
                 return;
             }
 
@@ -130,8 +122,8 @@ function parseUserActivity(data, id, count, depth, nextPage) {
                 var idUser = data.hash[item.actor.id];
                 if (typeof idUser == "undefined" || idUser == -1) {
                     data.nodes.push({
-                        x : w/2 * Math.random() * (Math.random() * 2 ? -1 : 1),
-                        y : h/2 * Math.random() * (Math.random() * 2 ? -1 : 1),
+                        x : w/2 * Math.random() * (Math.round((Math.random() * 2) % 2) ? -1 : 1),
+                        y : h/2 * Math.random() * (Math.round((Math.random() * 2) % 2) ? -1 : 1),
                         r : 7,
                         linkDegree : 0,
                         type : 0,
@@ -141,12 +133,12 @@ function parseUserActivity(data, id, count, depth, nextPage) {
                     });
                     idUser = i;
                     data.hash[item.actor.id] = i;
-                    callAlpha(data);
                     if (plusar.redraw)
-                        plusar.redraw();
+                        plusar.redraw(data.nodes[idUser]);
                 }
                 var parent = data.nodes[idUser];
-                parent.date = d3.max([parent.date, new Date(item.published).getTime(), new Date(item.updated).getTime()]);
+                parent.date = d3.max(d3.extent([parent.date, new Date(item.published).getTime(), new Date(item.updated).getTime()]));
+                callAlpha(data);
 
                 i = addChildNode(data, parent, 1, item, plusar.useRandom);
 
@@ -164,8 +156,9 @@ function parseUserActivity(data, id, count, depth, nextPage) {
                     })
                 }
             });
-            if (activities.nextPageToken && count - activities.items.length > 0)
-                parseUserActivity(data, id, count - activities.items.length, depth, activities.nextPageToken)
+            if (activities.items)
+                if (activities.nextPageToken && count - activities.items.length > 0)
+                    parseUserActivity(data, id, count - activities.items.length, depth, activities.nextPageToken)
         }
     }
 

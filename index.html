@@ -61,12 +61,12 @@
         var radiuses = function(d) {return d};
                 //d3.scale.linear().range([0, 20]).domain([0, 20]);
 
-        var /*force = pv.Force.spring(.05).damping(.1).length(20).links(data.links),
+        /*var force = pv.Force.spring(.05).damping(.1).length(20).links(data.links),
             charge = pv.Force.charge(-30).domain(2,500).theta(.8),
             drag = pv.Force.drag(.1),
             bound = pv.Constraint.bound().x(6, w - 6).y(6, h - 6),
-            collision = pv.Constraint.collision(function(d) { return radiuses(d.r) * 1.2 }),*/
-            alpha = d3.scale.ordinal().range([.08, .4]);
+            collision = pv.Constraint.collision(function(d) { return radiuses(d.r) * 1.2 }),
+            alpha = d3.scale.ordinal().range([.08, .4]);*/
 
         /*var sim = pv.simulation([])
             //.force(drag)
@@ -101,12 +101,10 @@
                 forceGraph.start();
             });
 
-        plusar.redrawInit(function() {
-            if (vis)
-                setTimeout(function() {
-                    vis.render();
-                }, 12);
+        plusar.redrawInit(function(d) {
             forceGraph.start();
+            if (vis)
+                vis.render();
         });
 
         function startFlow() {
@@ -144,10 +142,13 @@
                     .style("cursor", "move");
 
             function fill(i, d) {
-                var a = d.type != 1 && plusar.gids.indexOf(d.nodeValue.id) > -1 ? .8 : alpha(d.date),
-                    bc = isChecked(d) ? colors(d.type).alpha(.8) : (data.selected ? d3.rgb("#666") : colors(d.type)).alpha(a);
+                var bc = isChecked(d) ? colors(d.type) : (data.selected ? d3.rgb("#666") : colors(d.type));
                 return i ? bc
                          : colors(d.type).darker().darker().darker().darker();
+            }
+
+            function fill_opacity(i, d) {
+                return i ? (isChecked(d) || (d.type != 1 && plusar.gids.indexOf(d.nodeValue.id) > -1) ? .8 : alpha(d.date)) : 1;
             }
 
             function isChecked(d) {
@@ -192,7 +193,7 @@
             vis.update = function() {
                 this.selectAll(".edge path")
                     .style("stroke", function(d) { return colors(d.source.type) })
-                    .style("stroke-width", function(d) { return linew(1, d.target); })
+                    .style("stroke-width", function(d) { return linew(1, d.target) * 0.1; })
                     .attr("d", function(d) {
                         var xs = d.source.x,
                             ys = d.source.y,
@@ -215,26 +216,26 @@
                         g = d3.select(this);
                         g.selectAll("circle").each(function(d, i) {
                             d3.select(this)
-                                .attr("r", radius(i, d))
-                                .style("fill", function(d) { return fill(i, d); })
-                                .style("stroke-width", function(d) { return linew(i, d); })
-                                .style("stroke", function(d) { return stroke(i, d); });
+                                .attr("r", function(d) { return radius(i, d)})
+                                .style("fill", function(d) { return fill(i, d) })
+                                .style("fill-opacity", function(d) { return fill_opacity(i, d)})
+                                .style("stroke-width", function(d) { return linew(i, d)})
+                                .style("stroke", function(d) { return stroke(i, d)});
                         });
                     });
             }
 
-            vis.render = function() {
-
-                var edges = this.select("#edgeCont")
-
-                var nodes = this.select("#nodeCont");
+            vis.renderEdge = function() {
+                var edges = this.select("#edgeCont");
 
                 if (typeof params.showedge != "undefined") {
                     if (edges.empty())
                         edges = this.append("g").attr("id", "edgeCont");
 
                     edges = edges.selectAll(".edge")
-                        .data(data.links)
+                        .data(data.links, function(d) {
+                                return d.source.index + "_" + d.target.index;
+                            })
                         ;
 
                     edges.enter()
@@ -247,6 +248,11 @@
                 }
                 else
                     this.select("#edgeCont").remove();
+            }
+
+            vis.renderNode = function() {
+
+                var nodes = this.select("#nodeCont");
 
                 params.shownode = true;
                 if (typeof params.shownode != "undefined") {
@@ -256,7 +262,7 @@
                     nodes = nodes.selectAll(".node")
                         .data(data.nodes.filter(function(d) {
                             return d.visible != undefined ? d.visible : true;
-                        }))
+                        }), function(d) { return d.index })
                         ;
 
                     nodes.enter()
@@ -278,7 +284,6 @@
                         })
                         .style("cursor", "pointer")
                         .style("opacity", ".1")
-                        //.attr("title", title)
                         .call(forceGraph.drag)
                         .each(function(g) {
                             g = d3.select(this);
@@ -286,6 +291,8 @@
                                 g.append("circle")
                                 //.attr("pointer-events", "none")
                             })
+                            g.append("title")
+                                .text(title)
                         })
                         .transition()
                         .duration(3000)
@@ -295,7 +302,14 @@
                         .style("opacity", "1")
                         ;
                 }
+                else
+                    this.select("#nodeCont").remove();
+            }
 
+            vis.render = function() {
+
+                this.renderEdge();
+                this.renderNode();
                 this.update();
             }
 
@@ -412,6 +426,7 @@
                             obj[prop == "target" ? "sourceNode" : "targetNode"] = data.nodes[index];
                         obj[prop == "target" ? "sourceIndex" : "targetIndex"] = index;
                         data.links.push(obj);
+                        vis.renderEdge();
                     }
                     parent = data.nodes[index];
                     incSize(parent);
