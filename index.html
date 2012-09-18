@@ -59,24 +59,6 @@
         var vis;
 
         var radiuses = function(d) {return d};
-                //d3.scale.linear().range([0, 20]).domain([0, 20]);
-
-        /*var force = pv.Force.spring(.05).damping(.1).length(20).links(data.links),
-            charge = pv.Force.charge(-30).domain(2,500).theta(.8),
-            drag = pv.Force.drag(.1),
-            bound = pv.Constraint.bound().x(6, w - 6).y(6, h - 6),
-            collision = pv.Constraint.collision(function(d) { return radiuses(d.r) * 1.2 }),
-            alpha = d3.scale.ordinal().range([.08, .4]);*/
-
-        /*var sim = pv.simulation([])
-            //.force(drag)
-            //.force(charge)
-            //.force(force)
-            //.constraint(pv.Constraint.position())
-            .constraint(collision)
-            //.constraint(bound)
-            .stabilize()
-            ;*/
 
         var forceGraph = d3.layout.force()
             .nodes(data.nodes)
@@ -85,7 +67,7 @@
             //.friction(.9)
             .gravity(.05)
             .charge(function(d) {
-                return -(d.r * 10);
+                return -(d.r * 20);
             })
             //.theta(.8)
             .linkDistance(function(d) {
@@ -93,9 +75,6 @@
             })
             //.linkStrength(1)
             .on("tick", function(e) {
-                if (window.sim)
-                    sim.step();
-
                 if (vis)
                     vis.update();
                 forceGraph.start();
@@ -103,8 +82,8 @@
 
         plusar.redrawInit(function(d) {
             forceGraph.start();
-            if (vis)
-                vis.render();
+            /*if (vis)
+                vis.render();*/
         });
 
         function startFlow() {
@@ -119,8 +98,150 @@
                 d3.rgb("#FF3F46")
             ]).domain([0, 4]);
 
-            vis = d3.select("#canvas")
-                    .append("svg:svg")
+            var lastEvent = {
+                translate : [w/2, h/2],
+                scale : 1
+            }
+
+            vis = {
+                renderEdge : function() {
+                    if (typeof params.showedge != "undefined") {
+                        var context = this.canvas;
+
+                        if (!context)
+                            return;
+
+                        forceGraph.links().forEach(function (d) {
+                            context.beginPath();
+
+                            var c = fill(1, d.source);
+                            context.strokeStyle = "rgba(" + [c.r, c.g, c.b, fill_opacity(1, d.source)] + ")";
+
+                            //context.strokeStyle = colors(d.source.type).toString();
+                            context.lineWidth = linew(1, d.target);
+
+                            var xs = d.source.x,
+                                ys = d.source.y,
+                                xt = d.target.x,
+                                yt = d.target.y;
+
+                            d.source.shown = d.source.visible; //&& (xs > 0 && xs < w && ys > 0 && ys < h);
+                            d.target.shown = d.target.visible; //&& (xt > 0 && xt < w && yt > 0 && yt < h);
+
+                            if (d.source.shown || d.target.shown) {
+                                context.moveTo(xs, ys);
+                                var x3 = .3 * yt - .3 * ys + .8 * xs + .2 * xt;
+                                var y3 = .8 * ys + .2 * yt - .3 * xt + .3 * xs;
+                                var x4 = .3 * yt - .3 * ys + .2 * xs + .8 * xt;
+                                var y4 = .2 * ys + .8 * yt - .3 * xt + .3 * xs;
+                                context.bezierCurveTo(x3, y3, x4, y4, xt, yt);
+                                context.stroke();
+                            }
+                        });
+                    }
+                },
+                renderNode : function() {
+                    params.shownode = true;
+                    if (typeof params.shownode != "undefined") {
+                        var context = this.canvas;
+
+                        if (!context)
+                            return;
+
+                        forceGraph.nodes().forEach(function (d) {
+                            var dx = d.x,
+                                dy = d.y;
+                            d.visible = d.visible != undefined ? d.visible : true;
+                            d.shown = /*d.shown != undefined ? d.shown
+                                    : */d.visible;// && (dx > 0 && dx < w && dy > 0 && dy < h);
+                            if (d.shown) {
+                                for(var i = 1; i >= 0; i--) {
+                                    context.beginPath();
+                                    var c = fill(i, d);
+                                    context.fillStyle = "rgba(" + [c.r, c.g, c.b, fill_opacity(i, d)] + ")";
+                                    context.strokeStyle = stroke(i, d).toString();
+                                    context.lineWidth = linew(i, d);
+                                    context.arc(dx, dy, radius(i, d), 0, Math.PI * 2, true);
+                                    context.fill();
+                                    context.stroke();
+                                }
+                            }
+                        });
+                    }
+                },
+                update : function() {
+                    vis.zoom();
+                    /*this.selectAll(".edge path")
+                        .style("stroke", function(d) { return colors(d.source.type) })
+                        .style("stroke-width", function(d) { return linew(1, d.target) * 0.1; })
+                        .attr("d", function(d) {
+                            var xs = d.source.x,
+                                ys = d.source.y,
+                                xt = d.target.x,
+                                yt = d.target.y;
+
+                            var x3 = .3 * yt - .3 * ys + .8 * xs + .2 * xt;
+                            var y3 = .8 * ys + .2 * yt - .3 * xt + .3 * xs;
+                            var x4 = .3 * yt - .3 * ys + .2 * xs + .8 * xt;
+                            var y4 = .2 * ys + .8 * yt - .3 * xt + .3 * xs;
+
+                            return "M " + xs + "," + ys + " C " + x3 + "," + y3 + " " + x4 + "," + y4 + " " + xt + "," + yt;
+                        });
+
+                    this.selectAll(".node")
+                        .attr("transform", function (d) {
+                            return "translate(" + [d.x , d.y] + ")";
+                        })
+                        .each(function(g) {
+                            g = d3.select(this);
+                            g.selectAll("circle").each(function(d, i) {
+                                d3.select(this)
+                                    .attr("r", function(d) { return radius(i, d)})
+                                    .style("fill", function(d) { return fill(i, d) })
+                                    .style("fill-opacity", function(d) { return fill_opacity(i, d)})
+                                    .style("stroke-width", function(d) { return linew(i, d)})
+                                    .style("stroke", function(d) { return stroke(i, d)});
+                            });
+                        });*/
+                },
+                render : function() {
+                    this.renderEdge();
+                    this.renderNode();
+                    //this.update();
+                },
+                zoom : function() {
+                    if (this.canvas) {
+                        this.canvas.save();
+                        this.canvas.clearRect(0, 0, w, h);
+
+                        if (d3.event) {
+                            lastEvent.translate = d3.event.translate.slice(0);
+                            lastEvent.scale = d3.event.scale;
+                        }
+
+                        this.canvas.translate(lastEvent.translate[0], lastEvent.translate[1]);
+                        this.canvas.scale(lastEvent.scale, lastEvent.scale);
+                        this.render();
+                        this.canvas.restore();
+                    }
+                }
+            };
+
+            function zoom() {
+                vis.zoom();
+            }
+
+            vis.canvas = d3.select("body")
+                    .append("canvas")
+                    .attr("width", w)
+                    .attr("height", h)
+                    .call(d3.behavior.zoom()
+                        .translate(lastEvent.translate)
+                        .scale(lastEvent.scale)
+                        .scaleExtent([.001, 100])
+                        .on("zoom", zoom))
+                    .node().getContext("2d");
+                    /*.append("svg:svg")
                     .style("background", "rgba(255,255,255,0.01)")
                     .attr("width", w + "px")
                     .attr("height", h + "px")
@@ -139,12 +260,12 @@
                     .attr("transform", "scale(1)translate(" + [w/2,h/2] + ")")
                     .attr("width", w + "px")
                     .attr("height", h + "px")
-                    .style("cursor", "move");
+                    .style("cursor", "move");*/
 
             function fill(i, d) {
                 var bc = isChecked(d) ? colors(d.type) : (data.selected ? d3.rgb("#666") : colors(d.type));
                 return i ? bc
-                         : colors(d.type).darker().darker().darker().darker();
+                         : colors(d.type)/*.darker().darker()*/.darker().darker();
             }
 
             function fill_opacity(i, d) {
@@ -177,7 +298,7 @@
             }
 
             function stroke(i, d) {
-                return isChecked(d) ? "#666" : colors(d.type).darker().darker().darker().darker();
+                return isChecked(d) ? "#666" : colors(d.type)/*.darker().darker()*/.darker().darker();
             }
 
             function title(d) {
@@ -188,129 +309,6 @@
             function radius(i, d) {
                 var r = radiuses(d.r);
                 return (i ? r : r * 0.1);
-            }
-
-            vis.update = function() {
-                this.selectAll(".edge path")
-                    .style("stroke", function(d) { return colors(d.source.type) })
-                    .style("stroke-width", function(d) { return linew(1, d.target) * 0.1; })
-                    .attr("d", function(d) {
-                        var xs = d.source.x,
-                            ys = d.source.y,
-                            xt = d.target.x,
-                            yt = d.target.y;
-
-                        var x3 = .3 * yt - .3 * ys + .8 * xs + .2 * xt;
-                        var y3 = .8 * ys + .2 * yt - .3 * xt + .3 * xs;
-                        var x4 = .3 * yt - .3 * ys + .2 * xs + .8 * xt;
-                        var y4 = .2 * ys + .8 * yt - .3 * xt + .3 * xs;
-
-                        return "M " + xs + "," + ys + " C " + x3 + "," + y3 + " " + x4 + "," + y4 + " " + xt + "," + yt;
-                    });
-
-                this.selectAll(".node")
-                    .attr("transform", function (d) {
-                        return "translate(" + [d.x , d.y] + ")";
-                    })
-                    .each(function(g) {
-                        g = d3.select(this);
-                        g.selectAll("circle").each(function(d, i) {
-                            d3.select(this)
-                                .attr("r", function(d) { return radius(i, d)})
-                                .style("fill", function(d) { return fill(i, d) })
-                                .style("fill-opacity", function(d) { return fill_opacity(i, d)})
-                                .style("stroke-width", function(d) { return linew(i, d)})
-                                .style("stroke", function(d) { return stroke(i, d)});
-                        });
-                    });
-            }
-
-            vis.renderEdge = function() {
-                var edges = this.select("#edgeCont");
-
-                if (typeof params.showedge != "undefined") {
-                    if (edges.empty())
-                        edges = this.append("g").attr("id", "edgeCont");
-
-                    edges = edges.selectAll(".edge")
-                        .data(data.links, function(d) {
-                                return d.source.index + "_" + d.target.index;
-                            })
-                        ;
-
-                    edges.enter()
-                        .append("g")
-                        .attr("class", "edge")
-                        .append("path")
-                        .style("stroke", function(d) { return colors(d.source.type) })
-                        .style("stroke-width", function(d) { return linew(1, d.target); })
-                        .style("fill", "none");
-                }
-                else
-                    this.select("#edgeCont").remove();
-            }
-
-            vis.renderNode = function() {
-
-                var nodes = this.select("#nodeCont");
-
-                params.shownode = true;
-                if (typeof params.shownode != "undefined") {
-                    if (nodes.empty())
-                        nodes = vis.append("g").attr("id", "nodeCont");
-
-                    nodes = nodes.selectAll(".node")
-                        .data(data.nodes.filter(function(d) {
-                            return d.visible != undefined ? d.visible : true;
-                        }), function(d) { return d.index })
-                        ;
-
-                    nodes.enter()
-                        .append("g")
-                        .attr("class", "node")
-                        .on("click", function(d) {
-                            d["clicked"] ? (delete d["clicked"]) : (d.clicked = 1);
-                            delete data["selected"];
-                            if (d["clicked"]) {
-                                data.selected = (d.nodeValue.hasOwnProperty("actor")
-                                    ? d.nodeValue.actor
-                                    : d.nodeValue
-                                ).id;
-                                data.nodes.forEach(function(l) {
-                                    l.index != d.index && delete l["clicked"];
-                                });
-                            }
-                            vis.update();
-                        })
-                        .style("cursor", "pointer")
-                        .style("opacity", ".1")
-                        .call(forceGraph.drag)
-                        .each(function(g) {
-                            g = d3.select(this);
-                            [0, 1].forEach(function(i) {
-                                g.append("circle")
-                                //.attr("pointer-events", "none")
-                            })
-                            g.append("title")
-                                .text(title)
-                        })
-                        .transition()
-                        .duration(3000)
-                        .attr("transform", function (d) {
-                            return "translate(" + [d.x , d.y] + ")";
-                        })
-                        .style("opacity", "1")
-                        ;
-                }
-                else
-                    this.select("#nodeCont").remove();
-            }
-
-            vis.render = function() {
-
-                this.renderEdge();
-                this.renderNode();
-                this.update();
             }
 
             function firstRequest() {
@@ -449,17 +447,17 @@
                 })
                 .forEach(function (d) {
                     data.links.splice(d.i, 1);
-                    vis.selectAll(".edge")
+                    /*vis.selectAll(".edge")
                         .filter(function(l) {
                             return l == d;
                         })
-                        .remove();
+                        .remove();*/
                 });
         }
 
         function removeNode(item) {
             item.visible = false;
-            vis.selectAll(".node")
+            /*vis.selectAll(".node")
                 .filter(function(d) {
                     return d.index == item.index;
                 })
@@ -469,7 +467,7 @@
                     return "translate(" + [m.x, m.y] + ")";
                 })
                 .style("opacity", ".1")
-                .remove();
+                .remove();*/
         }
 
         function toDirectGraph() {
