@@ -5,6 +5,6 @@
  */
 function sendRequest(accessToken, url, callback) {
     url += url.indexOf("?") === -1 ? "?" : "&";
-    url += plusar.useKey ? "key=" + conf.API_KEY : 'access_token=' + accessToken;
+    url += plusart.useKey ? "key=" + conf.API_KEY : 'access_token=' + accessToken;
     JSONP(url, callback);
 }

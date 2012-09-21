@@ -11,13 +11,12 @@ function decSize(item) {
     item.linkDegree--;
     item.r--;
 }
-var alpha = d3.scale.ordinal().range([.08, .4]);
-function callAlpha(data) {
-    alpha.domain(d3.extent(data.nodes.map(function(d) { return d.date; }).sort(function(a , b) { return a - b; })));
-}
+
 
 function addChildNode(data, parent, type, value, random) {
     var i = data.nodes.length;
+    var dp = type == 1 ? new Date(value.published).getTime() : parent.date,
+        du = type == 1 ? new Date(value.updated).getTime() : parent.date;
 
     var id = (value.hasOwnProperty("actor") ? value.actor : value).id;
     var idUser = 0;
@@ -30,14 +29,13 @@ function addChildNode(data, parent, type, value, random) {
             linkDegree: 0,
             type: type,
             nodeValue: value,
-            date : type == 1 ? d3.max([new Date(value.published).getTime(), new Date(value.updated).getTime()]) : parent.date,
+            date : d3.max([dp, du]),
             index: i
         });
         idUser = i;
         //type != 1 && (data.hash[id] = i);
-        callAlpha(data);
-        if (plusar.redraw)
-            plusar.redraw(data.nodes[idUser]);
+        if (plusart.redraw)
+            plusart.redraw(data.nodes[idUser]);
     //}
 
     if (type != 1 && typeof data.hash[id] != "undefined" && data.hash[id] > 0)
@@ -55,8 +53,8 @@ function addChildNode(data, parent, type, value, random) {
             targetIndex : parent.index,
             targetNode: parent
         });
-        if (plusar.redraw)
-            plusar.redraw();
+        if (plusart.redraw)
+            plusart.redraw();
     //}
     return idUser;
 }
@@ -70,7 +68,7 @@ function parsePostActivity(data, parent, depth, type) {
                 return;
             }
 
-            plusar.asyncForEach(pluses.items, function(item) {
+            plusart.asyncForEach(pluses.items, function(item) {
                 var id = (item.hasOwnProperty("actor") ? item.actor : item).id;
                 addChildNode(data, parent,
                     type == "replies"
@@ -79,24 +77,24 @@ function parsePostActivity(data, parent, depth, type) {
                     item);
                 if (depth > 0 && !data.hash.hasOwnProperty(id)) {
                     data.hash[id] = -1;
-                    parseUserActivity(data, id, plusar.Count, depth);
+                    parseUserActivity(data, id, plusart.Count, depth);
                 }
             });
         }
     }
 
-    if (parent.nodeValue.id && plusar.maxResults[type]) {
+    if (parent.nodeValue.id && plusart.maxResults[type]) {
         var request;
         if (type == "replies") {
             request = gapi.client.plus.comments.list({
-                maxResults : plusar.maxResults[type],
+                maxResults : plusart.maxResults[type],
                 //"fields":"items(actor(displayName,id),id,inReplyTo/id,published,updated)",
                 activityId : parent.nodeValue.id
             });
         }
         else {
             request = gapi.client.plus.people.listByActivity({
-                maxResults : plusar.maxResults[type],
+                maxResults : plusart.maxResults[type],
                 //"fields":"items(displayName,id),selfLink",
                 activityId : parent.nodeValue.id,
                 collection : type
@@ -108,6 +106,7 @@ function parsePostActivity(data, parent, depth, type) {
 }
 
 function parseUserActivity(data, id, count, depth, nextPage) {
+    window.ttt = window.ttt || {};
     function run(data, id, count, depth) {
         depth = depth || 0;
         return function(activities) {
@@ -117,30 +116,33 @@ function parseUserActivity(data, id, count, depth, nextPage) {
             }
 
             count = typeof count === "undefined" ? activities.items.length : count;
-            plusar.asyncForEach(activities.items, function(item) {
-                var i = data.nodes.length;
-                var idUser = data.hash[item.actor.id];
-                if (typeof idUser == "undefined" || idUser == -1) {
-                    data.nodes.push({
+            plusart.asyncForEach(activities.items, function(item) {
+                var dp = new Date(item.published).getTime(),
+                    du = new Date(item.updated).getTime(),
+                    parent,
+                    i = data.hash[item.actor.id];
+                if (typeof i == "undefined" || i == -1) {
+                    parent = {
                         x : w/2 * Math.random() * (Math.round((Math.random() * 2) % 2) ? -1 : 1),
                         y : h/2 * Math.random() * (Math.round((Math.random() * 2) % 2) ? -1 : 1),
                         r : 7,
                         linkDegree : 0,
                         type : 0,
                         nodeValue : item.actor,
-                        date : d3.max([new Date(item.published).getTime(), new Date(item.updated).getTime()]),
-                        index : i
-                    });
-                    idUser = i;
-                    data.hash[item.actor.id] = i;
-                    if (plusar.redraw)
-                        plusar.redraw(data.nodes[idUser]);
+                        date : d3.max([dp, du]),
+                        dates : [],
+                        index : 0
+                    };
+                    parent.index = data.hash[item.actor.id] = data.nodes.push(parent) - 1;
+                    if (plusart.redraw)
+                        plusart.redraw(data.nodes[parent.index]);
                 }
-                var parent = data.nodes[idUser];
-                parent.date = d3.max(d3.extent([parent.date, new Date(item.published).getTime(), new Date(item.updated).getTime()]));
-                callAlpha(data);
+                else {
+                    parent = data.nodes[i];
+                }
+                parent.dates.push(d3.max([dp, du]));
 
-                i = addChildNode(data, parent, 1, item, plusar.useRandom);
+                i = addChildNode(data, parent, 1, item, plusart.useRandom);
 
                 if (item.object) {
                     ["replies", "plusoners", "resharers"].forEach(function(l, j) {

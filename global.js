@@ -1,6 +1,6 @@
-var plusar = plusar || {};
+var plusart = window.plusart || {};
 
-plusar.asyncForEach = function(items, fn) {
+plusart.asyncForEach = function(items, fn) {
     if (!(items instanceof Array))
         return;
 
@@ -15,8 +15,8 @@ plusar.asyncForEach = function(items, fn) {
     }, 12);
 }
 
-plusar.redrawInit = function(func) {
-    plusar.redraw = func;
+plusart.redrawInit = function(func) {
+    plusart.redraw = func;
 }
 
 //http://stackoverflow.com/a/728694/820262

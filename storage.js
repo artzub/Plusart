@@ -1,4 +1,4 @@
-plusar.Storage = (function Storage(webstorage) {
+plusart.Storage = (function Storage(webstorage) {
     webstorage.__proto__.get = function(key) {
         return JSON.parse(this.getItem(key));
     };
@@ -13,7 +13,7 @@ plusar.Storage = (function Storage(webstorage) {
  * @return {goog.storage.Storage} the local storage.
  */
 function getStorage() {
-    return plusar.Storage;
+    return plusart.Storage;
 }
 
 /**

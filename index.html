@@ -33,12 +33,13 @@
     <div id="menu" class="popup"></div>
     <div id="canvas"></div>
     <script type="text/javascript">
+        "use strict";
         var params = {};
         document.location.search.replace(/^\?/, "").split("&").forEach(function(item) {
             var values = item.toLowerCase().split("=");
             var key = values[0];
             params[key] = values.length > 1 ? values[1] : "";
-        })
+        });
 
         window.data &&
             data.links.forEach(function(d) {
@@ -46,7 +47,7 @@
                 d.targetNode = data.nodes[d.target];
             });
 
-        data = window.data || { hash : {}, nodes : [], links : [] };
+        window.data = window.data || { hash : {}, nodes : [], links : [] };
 
         data.hash = data.hash || {};
 
@@ -57,37 +58,51 @@
             dgraphTimer;
 
         var vis;
+        var alpha = d3.scale.ordinal();
+        function callAlpha(d) {
+            if (d) {
+                var arr = alpha.domain().concat(
+                        [d.date = (d.type == 0 && d.dates.length && d3.max(d.dates)) || d.date]);
+                var i = .5 / ((arr.length || 1) / 1);
+                alpha.range(d3.range(.1, .5, i));
+                alpha.domain(
+                    arr.sort(d3.ascending)
+                );
+            }
+        }
 
         var radiuses = function(d) {return d};
 
         var forceGraph = d3.layout.force()
             .nodes(data.nodes)
             .links(data.links)
-            //.size([w/2, h/2])
-            //.friction(.9)
+            //.size([w, h])
+            .friction(.6)
             .gravity(.05)
             .charge(function(d) {
-                return -(d.r * 20);
+                return -(d.r * 30);
             })
-            //.theta(.8)
+            .theta(.8)
             .linkDistance(function(d) {
                 return (d.target.r + d.source.r) * 1.2;
             })
-            //.linkStrength(1)
+            .linkStrength(1.2)
             .on("tick", function(e) {
                 if (vis)
                     vis.update();
                 forceGraph.start();
             });
 
-        plusar.redrawInit(function(d) {
+        plusart.redrawInit(function(d) {
             forceGraph.start();
+            if (d)
+                callAlpha(d);
             /*if (vis)
                 vis.render();*/
         });
 
         function startFlow() {
-            w = document.body.scrollWidth,
+            w = document.body.scrollWidth;
             h = document.body.scrollHeight - 5;
 
             var colors = d3.scale.ordinal().range([
@@ -98,12 +113,25 @@
                 d3.rgb("#FF3F46")
             ]).domain([0, 4]);
 
-            var lastEvent = {
-                translate : [w/2, h/2],
-                scale : 1
-            }
-
             vis = {
+                transform : {
+                    translate : [w/2, h/2],
+                    scale : 1
+                },
+                checkVisible : function (d) {
+                    var tf = this.transform,
+                        tx = tf.translate[0]/tf.scale,
+                        ty = tf.translate[1]/tf.scale
+                        ;
+                    d.visible = d.visible != undefined ? d.visible : true;
+
+                    return d.visible && (
+                            d.x + d.r > -tx
+                         && d.x - d.r < -tx + w/tf.scale
+                         && d.y + d.r > -ty
+                         && d.y - d.r < -ty + h/tf.scale
+                    );
+                },
                 renderEdge : function() {
                     if (typeof params.showedge != "undefined") {
                         var context = this.canvas;
@@ -111,29 +139,27 @@
                         if (!context)
                             return;
 
-                        forceGraph.links().forEach(function (d) {
+                        //plusart.asyncForEach(
+                                forceGraph.links().forEach(function (d) {
                             context.beginPath();
 
                             var c = fill(1, d.source);
                             context.strokeStyle = "rgba(" + [c.r, c.g, c.b, fill_opacity(1, d.source)] + ")";
 
                             //context.strokeStyle = colors(d.source.type).toString();
-                            context.lineWidth = linew(1, d.target);
+                            context.lineWidth = 1//linew(1, d.target);
 
                             var xs = d.source.x,
                                 ys = d.source.y,
                                 xt = d.target.x,
                                 yt = d.target.y;
 
-                            d.source.shown = d.source.visible; //&& (xs > 0 && xs < w && ys > 0 && ys < h);
-                            d.target.shown = d.target.visible; //&& (xt > 0 && xt < w && yt > 0 && yt < h);
-
-                            if (d.source.shown || d.target.shown) {
+                            if (vis.checkVisible(d.source) || vis.checkVisible(d.target)) {
                                 context.moveTo(xs, ys);
-                                var x3 = .3 * yt - .3 * ys + .8 * xs + .2 * xt;
-                                var y3 = .8 * ys + .2 * yt - .3 * xt + .3 * xs;
-                                var x4 = .3 * yt - .3 * ys + .2 * xs + .8 * xt;
-                                var y4 = .2 * ys + .8 * yt - .3 * xt + .3 * xs;
+                                var x3 = .3 * yt - .3 * ys + .8 * xs + .2 * xt,
+                                    y3 = .8 * ys + .2 * yt - .3 * xt + .3 * xs,
+                                    x4 = .3 * yt - .3 * ys + .2 * xs + .8 * xt,
+                                    y4 = .2 * ys + .8 * yt - .3 * xt + .3 * xs;
                                 context.bezierCurveTo(x3, y3, x4, y4, xt, yt);
                                 context.stroke();
                             }
@@ -148,22 +174,19 @@
                         if (!context)
                             return;
 
-                        forceGraph.nodes().forEach(function (d) {
-                            var dx = d.x,
-                                dy = d.y;
-                            d.visible = d.visible != undefined ? d.visible : true;
-                            d.shown = /*d.shown != undefined ? d.shown
-                                    : */d.visible;// && (dx > 0 && dx < w && dy > 0 && dy < h);
-                            if (d.shown) {
+                        //plusart.asyncForEach(
+                                forceGraph.nodes().forEach(function (d) {
+                            if (vis.checkVisible(d)) {
                                 for(var i = 1; i >= 0; i--) {
                                     context.beginPath();
                                     var c = fill(i, d);
                                     context.fillStyle = "rgba(" + [c.r, c.g, c.b, fill_opacity(i, d)] + ")";
                                     context.strokeStyle = stroke(i, d).toString();
                                     context.lineWidth = linew(i, d);
-                                    context.arc(dx, dy, radius(i, d), 0, Math.PI * 2, true);
+                                    context.arc(d.x, d.y, radius(i, d), 0, Math.PI * 2, true);
                                     context.fill();
                                     context.stroke();
+                                    context.closePath();
                                 }
                             }
                         });
@@ -210,17 +233,21 @@
                     //this.update();
                 },
                 zoom : function() {
+                    /*w = document.body.scrollWidth;
+                    h = document.body.scrollHeight - 5;*/
+
                     if (this.canvas) {
                         this.canvas.save();
                         this.canvas.clearRect(0, 0, w, h);
 
                         if (d3.event) {
-                            lastEvent.translate = d3.event.translate.slice(0);
-                            lastEvent.scale = d3.event.scale;
+                            this.transform.translate = d3.event.translate.slice(0);
+                            this.transform.scale = d3.event.scale;
                         }
 
-                        this.canvas.translate(lastEvent.translate[0], lastEvent.translate[1]);
-                        this.canvas.scale(lastEvent.scale, lastEvent.scale);
+                        this.canvas.translate(this.transform.translate[0], this.transform.translate[1]);
+                        this.canvas.scale(this.transform.scale, this.transform.scale);
+
                         this.render();
                         this.canvas.restore();
                     }
@@ -236,8 +263,8 @@
                     .attr("width", w)
                     .attr("height", h)
                     .call(d3.behavior.zoom()
-                        .translate(lastEvent.translate)
-                        .scale(lastEvent.scale)
+                        .translate(vis.transform.translate)
+                        .scale(vis.transform.scale)
                         .scaleExtent([.001, 100])
                         .on("zoom", zoom))
                     .node().getContext("2d");
@@ -269,7 +296,7 @@
             }
 
             function fill_opacity(i, d) {
-                return i ? (isChecked(d) || (d.type != 1 && plusar.gids.indexOf(d.nodeValue.id) > -1) ? .8 : alpha(d.date)) : 1;
+                return i ? (isChecked(d) || (d.type != 1 && plusart.gids.indexOf(d.nodeValue.id) > -1) ? .8 : alpha(d.date)) : 1;
             }
 
             function isChecked(d) {
@@ -312,22 +339,22 @@
             }
 
             function firstRequest() {
-                gid = (params.gids ? params.gids : null ) || data.me.id;
+                var gid = (params.gids ? params.gids : null ) || data.me.id;
 
-                plusar.Count = parseInt(params.count || plusar.Count || 10);
-                plusar.Depth = parseInt(params.depth || plusar.Depth || 1);
+                plusart.Count = parseInt(params.count || plusart.Count || 10);
+                plusart.Depth = parseInt(params.depth || plusart.Depth || 1);
 
-                plusar.maxResults.replies = parseInt(params.ccount || plusar.maxResults.replies || 10);
-                plusar.maxResults.plusoners = parseInt(params.ppcount || plusar.maxResults.plusoners || 10);
-                plusar.maxResults.resharers = parseInt(params.rpcount || plusar.maxResults.resharers || 10);
+                plusart.maxResults.replies = parseInt(params.ccount || plusart.maxResults.replies || 10);
+                plusart.maxResults.plusoners = parseInt(params.ppcount || plusart.maxResults.plusoners || 10);
+                plusart.maxResults.resharers = parseInt(params.rpcount || plusart.maxResults.resharers || 10);
 
-                plusar.gids = gid.split(";");
-                plusar.useRandom = plusar.Depth < 2 && plusar.gids.length < 2;
-                plusar.gids.indexOf("me") > -1 && (plusar.gids[plusar.gids.indexOf("me")] = data.me.id);
-                plusar.asyncForEach(plusar.gids, function(id) {
+                plusart.gids = gid.split(";");
+                plusart.useRandom = plusart.Depth < 2 && plusart.gids.length < 2;
+                plusart.gids.indexOf("me") > -1 && (plusart.gids[plusart.gids.indexOf("me")] = data.me.id);
+                plusart.asyncForEach(plusart.gids, function(id) {
                     if (typeof data.hash[id] == "undefined") {
                         data.hash[id] = -1;
-                        parseUserActivity(data, id, plusar.Count, plusar.Depth);
+                        parseUserActivity(data, id, plusart.Count, plusart.Depth);
                     }
                 });
 
@@ -335,7 +362,7 @@
                     d3.selectAll(".trButton>span").filter(function() {
                         return !d3.select(this).classed("paused");
                     }).each(clickButton);
-                }, 20000 * plusar.Depth);
+                }, 20000 * plusart.Depth);
             }
 
             var now = Date.now();
@@ -359,7 +386,7 @@
         function run_renderTimer() {
             closeInterval(renderTimer);
             renderTimer = setInterval(function() {
-                //vis.render();
+                //vis.zoom();
             }, 12);
         }
 
@@ -370,7 +397,7 @@
             }, 12);
         }
 
-        Array.prototype.remove = function() {
+        /*Array.prototype.remove = function() {
             var what, a = arguments, L = a.length, ax;
             while(L && this.length){
                 what = a[--L];
@@ -379,7 +406,7 @@
                 }
             }
             return this;
-        }
+        }*/
 
         function remakeSim() {
             function collide(node) {
@@ -405,7 +432,7 @@
             }
         }
 
-        function remakeLink(parent, old_parent, prop, delprop) {
+        function remakeLink(parent, old_parent, prop) {
             prop = prop || "target";
             data.links.filter(function(d) {
                 return d[prop + "Index"] == old_parent.index;
@@ -447,6 +474,8 @@
                 })
                 .forEach(function (d) {
                     data.links.splice(d.i, 1);
+                    if (plusart.redraw)
+                        plusart.redraw();
                     /*vis.selectAll(".edge")
                         .filter(function(l) {
                             return l == d;
@@ -473,9 +502,9 @@
         function toDirectGraph() {
             data.directHash = {};
 
-            plusar.asyncForEach(data.nodes.slice(0)
+            plusart.asyncForEach(data.nodes.slice(0)
                     .sort(function(a, b) {
-                        return d3.ascending(b.linkDegree, a.linkDegree);
+                        return d3.ascending(a.date, b.date);
                     })
                     .sort(function(a, b) {
                         return d3.ascending(b.type, a.type);
@@ -517,7 +546,7 @@
         function handleClientLoad() {
             gapi.client.setApiKey(conf.API_KEY);
             window.setTimeout(function() {
-                (plusar.useKey && makeApiCall()) || checkAuth(makeApiCall);
+                (plusart.useKey && makeApiCall()) || checkAuth(makeApiCall);
             }, 1);
         }
 
