@@ -99,6 +99,33 @@
 
         var radiuses = function(d) {return d};
 
+        function collide(node) {
+            var r = node.r * 1.2 + 16,
+                nx1 = node.x - r,
+                nx2 = node.x + r,
+                ny1 = node.y - r,
+                ny2 = node.y + r;
+            return function(quad, x1, y1, x2, y2) {
+                if (node.visible /*&& !node.fixed*/ && quad.point && (quad.point !== node)) {
+                    var x = node.x - quad.point.x,
+                        y = node.y - quad.point.y,
+                        l = Math.sqrt(x * x + y * y),
+                        r = node.r + quad.point.r;
+                    if (l < r) {
+                        l = (l - r) / l * .5;
+                        node.x -= x *= l;
+                        node.y -= y *= l;
+                        quad.point.x += x;
+                        quad.point.y += y;
+                    }
+                }
+                return x1 > nx2
+                    || x2 < nx1
+                    || y1 > ny2
+                    || y2 < ny1;
+            };
+        }
+
         var forceGraph = d3.layout.force()
             .nodes(data.nodes)
             .links(data.links)
@@ -110,12 +137,24 @@
             })
             .theta(.8)
             .linkDistance(function(d) {
-                return (d.target.r + d.source.r) * 1.2;
+                var dx = d.target.r,
+                    dy = d.source.r,
+                    dr = dx + dy;//Math.sqrt(dx * dx + dy * dy);
+                return dr * 1.2;
             })
             .linkStrength(1.2)
             .on("tick", function(e) {
                 if (vis)
                     vis.update();
+
+                var nodes = forceGraph.nodes(),
+                    q = d3.geom.quadtree(nodes),
+                    i = nodes.length
+                    ;
+
+                while (--i > -1)
+                    q.visit(collide(nodes[i]));
+
                 /*if (calcTimer)
                     forceGraph.alpha(.01);*/
             })
@@ -516,10 +555,12 @@
             forceGraph.links().filter(function(d) {
                 return d[prop + "Index"] == old_parent.index;
             }).forEach(function(d) {
-                var item = d[prop == "target" ? "source" : "target"];
-                var id = (item.nodeValue.hasOwnProperty("actor") ? item.nodeValue.actor : item.nodeValue).id;
-                var index = data.directHash[id];
+                var item = d[prop == "target" ? "source" : "target"],
+                    id = (item.nodeValue.hasOwnProperty("actor") ? item.nodeValue.actor : item.nodeValue).id,
+                    index = data.directHash[id],
+                    pnt = parent;
                 if (typeof index != "undefined") {
+                    pnt = data.nodes[index];
                     if(!data.directHash[index + "_" + parent.index]
                     && !data.directHash[parent.index + "_" + index]) {
                         data.directHash[index + "_" + parent.index] = data.links.length;
@@ -527,15 +568,14 @@
                         obj[prop] = obj[prop + "Node"] = parent;
                         obj[prop + "Index"] = parent.index;
                         obj[prop == "target" ? "source" : "target"] =
-                            obj[prop == "target" ? "sourceNode" : "targetNode"] = data.nodes[index];
+                            obj[prop == "target" ? "sourceNode" : "targetNode"] = pnt;
                         obj[prop == "target" ? "sourceIndex" : "targetIndex"] = index;
                         forceGraph.links().push(obj);
-                        vis.renderEdge();
+                        forceGraph.start();
                     }
-                    parent = data.nodes[index];
-                    incSize(parent);
+                    incSize(pnt);
                 }
-                decSize(d[prop]);
+                decSize(item);
                 d[prop] = d[prop + "Node"] = parent;
                 d[prop + "Index"] = parent.index;
                 incSize(parent);
@@ -552,7 +592,6 @@
                     return d;
                 })
                 .forEach(function (d) {
-                    forceGraph.stop();
                     forceGraph.links().splice(d.i, 1);
                     forceGraph.start();
                 });
@@ -577,11 +616,10 @@
                 if (typeof index == "undefined") {
                     index = item.index;
                     data.directHash[id] = index;
-                    item.linkDegree = -1;
+                    item.linkDegree = 0;
                     item.r = 6;
                 }
                 var parent = data.nodes[index];
-                incSize(parent);
 
                 if (item.type == 1) {
                     remakeLink(parent, item);
@@ -590,9 +628,10 @@
                     item.r = 4;
                     item.linkDegree = 0;
 
-                    remakeLink(parent, item);
+                    remakeLink(parent, item, "source");
                     removeNode(item);
                 }
+                parent.r = parent.weight + 6;
             });
 
         }
