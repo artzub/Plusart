@@ -1,17 +1,3 @@
-plusart.Storage = (function Storage(webstorage) {
-    webstorage.__proto__.get = function(key) {
-        return JSON.parse(this.getItem(key));
-    };
-    webstorage.__proto__.set = function(key, value) {
-        this.setItem(key, JSON.stringify(value));
-    }
-    return webstorage;
-})(window.localStorage);
-
-/**
- * Creates the local storage.
- * @return {goog.storage.Storage} the local storage.
- */
 function getStorage() {
     return plusart.Storage;
 }

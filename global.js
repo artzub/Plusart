@@ -1,39 +1,46 @@
-var plusart = window.plusart || {};
+var SMALL_TIMER = 12;
 
-plusart.asyncForEach = function(items, fn) {
-    if (!(items instanceof Array))
-        return;
+(function() {
+    var lastTime = 0;
+    var vendors = ['ms', 'moz', 'webkit', 'o'];
+    for(var x = 0; x < vendors.length && !window.requestAnimationFrame; ++x) {
+        window.requestAnimationFrame = window[vendors[x]+'RequestAnimationFrame'];
+        window.cancelAnimationFrame =
+            window[vendors[x]+'CancelAnimationFrame'] || window[vendors[x]+'CancelRequestAnimationFrame'];
+    }
 
-    var workArr = items.concat();
+    if (!window.requestAnimationFrame)
+        window.requestAnimationFrame = function(callback, element) {
+            var currTime = new Date().getTime();
+            var timeToCall = Math.max(0, 16 - (currTime - lastTime));
+            var id = window.setTimeout(function() { callback(currTime + timeToCall); },
+              timeToCall);
+            lastTime = currTime + timeToCall;
+            return id;
+        };
 
-    setTimeout(function() {
-        if (workArr.length > 0)
-            fn(workArr.pop(), workArr);
-        if (workArr.length > 0)
-            setTimeout(arguments.callee, 12);
-
-    }, 12);
-}
-
-plusart.redrawInit = function(func) {
-    plusart.redraw = func;
-}
+    if (!window.cancelAnimationFrame)
+        window.cancelAnimationFrame = function(id) {
+            clearTimeout(id);
+        };
+}());
 
 //http://stackoverflow.com/a/728694/820262
 function clone(obj) {
     // Handle the 3 simple types, and null or undefined
     if (null == obj || "object" != typeof obj) return obj;
 
+    var copy;
     // Handle Date
     if (obj instanceof Date) {
-        var copy = new Date();
+        copy = new Date();
         copy.setTime(obj.getTime());
         return copy;
     }
 
     // Handle Array
     if (obj instanceof Array) {
-        var copy = [];
+        copy = [];
         var len = obj.length;
         for (var i = 0; i < len; ++i) {
             copy[i] = clone(obj[i]);
@@ -43,7 +50,7 @@ function clone(obj) {
 
     // Handle Object
     if (obj instanceof Object) {
-        var copy = {};
+        copy = {};
         for (var attr in obj) {
             if (obj.hasOwnProperty(attr)) copy[attr] = clone(obj[attr]);
         }
@@ -51,4 +58,46 @@ function clone(obj) {
     }
 
     throw new Error("Unable to copy obj! Its type isn't supported.");
+}
+
+function throttle(f, ms) {
+
+    var timer;
+    var state = null;
+
+    var COOLDOWN = 1;
+    var CALL_SCHEDULED = 2;
+
+    var scheduledThis, scheduledArgs;
+
+    function later() {
+        if (state == COOLDOWN) {
+            state = null;
+            return;
+        }
+
+        if (state == CALL_SCHEDULED) {
+            state = null;
+            wrapper();
+        }
+    }
+
+    function wrapper() {
+        f.apply(scheduledThis, scheduledArgs);
+    }
+
+    return function() {
+        scheduledThis = this;
+        scheduledArgs = arguments;
+
+        state == COOLDOWN && (state = CALL_SCHEDULED);
+
+        if (state)
+            return;
+
+        wrapper();
+
+        state = COOLDOWN;
+        timer = setTimeout(later, ms);
+    }
 }
