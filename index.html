@@ -106,11 +106,11 @@
                 ny1 = node.y - r,
                 ny2 = node.y + r;
             return function(quad, x1, y1, x2, y2) {
-                if (node.visible /*&& !node.fixed*/ && quad.point && (quad.point !== node)) {
+                if (node.visible && quad.point && (!node.fixed && !quad.point.fixed) && (quad.point !== node)) {
                     var x = node.x - quad.point.x,
                         y = node.y - quad.point.y,
                         l = Math.sqrt(x * x + y * y),
-                        r = node.r + quad.point.r;
+                        r = (node.r + quad.point.r) * 1.2;
                     if (l < r) {
                         l = (l - r) / l * .5;
                         node.x -= x *= l;
@@ -550,7 +550,7 @@
 
         }
 
-        function remakeLink(parent, old_parent, prop) {
+        function remakeLink(parent, old_parent, prop, decRevers) {
             prop = prop || "target";
             forceGraph.links().filter(function(d) {
                 return d[prop + "Index"] == old_parent.index;
@@ -561,21 +561,23 @@
                     pnt = parent;
                 if (typeof index != "undefined") {
                     pnt = data.nodes[index];
-                    if(!data.directHash[index + "_" + parent.index]
-                    && !data.directHash[parent.index + "_" + index]) {
-                        data.directHash[index + "_" + parent.index] = data.links.length;
+                    var pref = prop == "target"
+                            ? index + "_" + parent.index
+                            : parent.index + "_" + index;
+                    if(!data.directHash[pref]) {
+                        data.directHash[pref] = -1;
                         var obj = {};
                         obj[prop] = obj[prop + "Node"] = parent;
                         obj[prop + "Index"] = parent.index;
                         obj[prop == "target" ? "source" : "target"] =
                             obj[prop == "target" ? "sourceNode" : "targetNode"] = pnt;
                         obj[prop == "target" ? "sourceIndex" : "targetIndex"] = index;
-                        forceGraph.links().push(obj);
+                        data.directHash[pref] = forceGraph.links().push(obj) - 1;
                         forceGraph.start();
                     }
                     incSize(pnt);
                 }
-                decSize(item);
+                decSize(decRevers ? item : d[prop]);
                 d[prop] = d[prop + "Node"] = parent;
                 d[prop + "Index"] = parent.index;
                 incSize(parent);
@@ -628,10 +630,9 @@
                     item.r = 4;
                     item.linkDegree = 0;
 
-                    remakeLink(parent, item, "source");
+                    remakeLink(parent, item, "source", true);
                     removeNode(item);
                 }
-                parent.r = parent.weight + 6;
             });
 
         }

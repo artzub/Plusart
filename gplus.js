@@ -9,7 +9,9 @@ function incSize(item) {
 
 function decSize(item) {
     item.linkDegree--;
+    item.linkDegree = item.linkDegree < 0 ? 0 : item.linkDegree;
     item.r--;
+    item.r = item.r < 0 ? 0 : item.r;
 }
 
 
@@ -19,7 +21,7 @@ function addChildNode(data, parent, type, value, random) {
         du = type == 1 ? new Date(value.updated).getTime() : parent.date;
 
     var id = (value.hasOwnProperty("actor") ? value.actor : value).id;
-    var idUser = 0;
+    var idUser;
 
     //if (typeof idUser == "undefined" || type == 1) {
         data.nodes.push({
