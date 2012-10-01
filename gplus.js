@@ -16,49 +16,45 @@ function decSize(item) {
 
 
 function addChildNode(data, parent, type, value, random) {
-    var i = data.nodes.length;
-    var dp = type == 1 ? new Date(value.published).getTime() : parent.date,
+    var i,
+        dp = type == 1 ? new Date(value.published).getTime() : parent.date,
         du = type == 1 ? new Date(value.updated).getTime() : parent.date;
 
     var id = (value.hasOwnProperty("actor") ? value.actor : value).id;
-    var idUser;
 
-    //if (typeof idUser == "undefined" || type == 1) {
-        data.nodes.push({
-            x: random ? w/2 * Math.random() * (Math.round((Math.random() * 2) % 2) ? -1 : 1) : parent.x + (parent.r * 2) * Math.cos(2 * Math.PI * Math.random()),
-            y: random ? h/2 * Math.random() * (Math.round((Math.random() * 2) % 2) ? -1 : 1) : parent.y + (parent.r * 2) * Math.sin(2 * Math.PI * Math.random()),
-            r: 4,
-            linkDegree: 0,
-            type: type,
-            nodeValue: value,
-            date : d3.max([dp, du]),
-            index: i
-        });
-        idUser = i;
-        //type != 1 && (data.hash[id] = i);
-        if (plusart.redraw)
-            plusart.redraw(data.nodes[idUser]);
-    //}
+    var child = {
+        x: random ? w/2 * Math.random() * (Math.round((Math.random() * 2) % 2) ? -1 : 1) : parent.x + (parent.r * 2) * Math.cos(2 * Math.PI * Math.random()),
+        y: random ? h/2 * Math.random() * (Math.round((Math.random() * 2) % 2) ? -1 : 1) : parent.y + (parent.r * 2) * Math.sin(2 * Math.PI * Math.random()),
+        r: 4,
+        linkDegree: 0,
+        type: type,
+        nodeValue: value,
+        date : d3.max([dp, du]),
+        index: 0
+    };
+
+    child.index = data.nodes.push(child) - 1;
+    if (plusart.redraw)
+        plusart.redraw(child);
 
     if (type != 1 && typeof data.hash[id] != "undefined" && data.hash[id] > 0)
         incSize(data.nodes[data.hash[id]]);
 
     incSize(parent);
-    incSize(data.nodes[idUser]);
+    incSize(child);
 
-    //if (!data.hash.hasOwnProperty(idUser + "_" + parent.index)) {
-        data.links.push({
-            source: data.nodes[idUser],
-            sourceIndex : idUser,
-            sourceNode: data.nodes[idUser],
-            target: parent,
-            targetIndex : parent.index,
-            targetNode: parent
-        });
-        if (plusart.redraw)
-            plusart.redraw();
-    //}
-    return idUser;
+    data.links.push({
+        source: child,
+        sourceIndex : child.index,
+        sourceNode: child,
+        target: parent,
+        targetIndex : parent.index,
+        targetNode: parent
+    });
+    if (plusart.redraw)
+        plusart.redraw();
+
+    return child.index;
 }
 
 function parsePostActivity(data, parent, depth, type) {
