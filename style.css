@@ -59,6 +59,8 @@ svg {
     display: inline-block;
     margin-left: 3px;
     padding: 3px;
+    -webkit-border-radius: 3px;
+    -moz-border-radius: 3px;
     border-radius: 3px;
     border: 1px solid transparent;
     cursor: default;
@@ -110,22 +112,94 @@ svg {
     box-shadow: inset 0px 1px 2px #6F6F6F;
 }
 
+.userinfo {
+    -webkit-border-radius: 6px;
+    -moz-border-radius: 6px;
+    border-radius: 6px;
+    -webkit-box-shadow: 0 1px 0 #AAA;
+    -moz-box-shadow: 0 1px 0 #aaa;
+    box-shadow: 0 1px 0 #AAA;
+    background-color: #F4F4F4;
+    background-image: -webkit-linear-gradient(top,white,#F4F4F4);
+    background-image: -moz-linear-gradient(top,white,#F4F4F4);
+    background-image: -ms-linear-gradient(top,white,#F4F4F4);
+    background-image: -o-linear-gradient(top,white,#F4F4F4);
+    background-image: linear-gradient(top,white,#F4F4F4);
+    filter: alpha(opacity=100);
+    opacity: 1;
+    border: 1px solid #DDD;
+    /*margin: 9px;
+    */padding: 4px;
+    position: relative;
+    vertical-align: top;
+    overflow: hidden;
+}
+
+.userinfo:hover {
+    -webkit-box-shadow: 0 0 4px #999;
+    -moz-box-shadow: 0 0 4px #999;
+    box-shadow: 0 0 4px #999;
+    filter: alpha(opacity=100);
+    opacity: 1;
+    border: 1px solid #BBB;
+}
+
+.userinfo img {
+    -webkit-border-radius: 4px;
+    -moz-border-radius: 4px;
+    border-radius: 4px;
+
+    border: none;
+    /*-webkit-border-radius: 0;
+    -moz-border-radius: 0;
+    border-radius: 0;*/
+    float: left;
+}
+
+.userinfo .lo {
+    background: url(https://ssl.gstatic.com/s2/oz/images/sge/x_icon.png) no-repeat center center;
+    cursor: pointer;
+    height: 15px;
+    position: absolute;
+    right: 4px;
+    top: 4px;
+    width: 15px;
+    z-index: 3;
+    display: none;
+}
+.userinfo:hover .lo {
+    display: block;
+}
+
+.userinfo .data {
+    font-size: 13px;
+    overflow: hidden;
+    padding: 8px 4px 4px 4px;
+    width: 68px;
+    word-wrap: break-word;
+}
+
 #userinfo {
+    position: absolute;
     opacity: .3;
     top: 15px;
     right: 15px;
     z-index: 10;
-    padding-bottom: 2px;
+    /*padding-bottom: 2px;
+
+    -webkit-border-radius: 3px;
+    -moz-border-radius: 5px;
+    border-radius: 5px;*/
 }
 
 #userinfo:hover {
     opacity: 1;
 
-    -webkit-box-shadow: 0px 0px 10px rgba(184, 184, 184, 1);
+    /*-webkit-box-shadow: 0px 0px 10px rgba(184, 184, 184, 1);
     -moz-box-shadow: 0px 0px 10px rgba(184, 184, 184, 1);
     -o-box-shadow: 0px 0px 10px rgba(184, 184, 184, 1);
     -ms-box-shadow: 0px 0px 10px rgba(184, 184, 184, 1);
-    box-shadow: 0px 0px 10px rgba(184, 184, 184, 1);
+    box-shadow: 0px 0px 10px rgba(184, 184, 184, 1);*/
 
     -webkit-transition: all 250ms linear;
     -moz-transition: all 250ms linear;
@@ -134,7 +208,7 @@ svg {
     transition: all 250ms linear;
 }
 
-#userinfo ul {
+/*#userinfo ul {
     display: block;
     padding: 0;
     margin: 0;
@@ -165,11 +239,13 @@ svg {
     -ms-transition: color .218s;
     transition: color .218s;
     color: #222;
-}
+}*/
 
 #menu {
     top: -1px;
     left: -1px;
+    -webkit-border-radius: 0 0 5px 0;
+    -moz-border-radius: 0 0 5px 0;
     border-radius: 0 0 5px 0;
     border-color: #B6BAC0;
     background-color: #E7E7E8;
@@ -201,6 +277,8 @@ a.photo:hover {
 
 a.photo img {
     border: 0 solid  #222;
+    -webkit-border-radius: 3px;
+    -moz-border-radius: 3px;
     border-radius: 3px;
     display: inline-block;
     float: left;

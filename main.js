@@ -6,11 +6,54 @@
 
 //"use strict";
 var params = {};
-document.location.search.replace(/^\?/, "").split("&").forEach(function(item) {
-    var values = item.toLowerCase().split("=");
-    var key = values[0];
-    params[key] = values.length > 1 ? values[1] : "";
-});
+
+function parseParams(hash) {
+    params = {};
+    hash.replace(/^#/, "").split("&").forEach(function(item) {
+        var values = item.toLowerCase().split("=");
+        var key = values[0];
+        params[key] = values.length > 1 ? values[1] : "";
+    });
+
+    var gid = (params.gids ? params.gids : null ) || data.me.id;
+
+    plusart.Count = parseInt(params.count || plusart.Count || 10);
+    plusart.Depth = parseInt(params.depth || plusart.Depth || 1);
+
+    plusart.maxResults.replies = parseInt(params.ccount || plusart.maxResults.replies || 10);
+    plusart.maxResults.plusoners = parseInt(params.ppcount || plusart.maxResults.plusoners || 10);
+    plusart.maxResults.resharers = parseInt(params.rpcount || plusart.maxResults.resharers || 10);
+
+    plusart.gids = gid.split(";");
+    plusart.useRandom = plusart.Depth < 2 && plusart.gids.length < 2;
+    plusart.gids.indexOf("me") > -1 && (plusart.gids[plusart.gids.indexOf("me")] = data.me.id);
+
+    plusart.friction = parseInt(params.friction || .9);
+    plusart.gravity = parseInt(params.gravity || .05);
+    plusart.charge = parseInt(params.charge || 10);
+    plusart.theta = parseInt(params.theta || .8);
+    plusart.linkDistance = parseInt(params.linkDistance || 1.2);
+    plusart.linkStrength = parseInt(params.linkStrength || 1.2);
+
+    plusart.shownode = params.shownode != undefined ? (params.shownode == '' ? true : params.shownode) : true;
+    plusart.showedge = params.showedge != undefined ? (params.showedge == '' ? true : params.showedge) : false;
+
+    plusart.isInit = params.reset != undefined ? false : plusart.isInit;
+}
+
+d3.select(window).on("hashchange", function(e) {
+    d3.event.preventDefault();
+    parseParams(document.location.hash);
+
+    if (plusart.isInit) {
+        plusart.asyncForEach(plusart.gids, function(id) {
+            if (typeof data.hash[id] == "undefined") {
+                data.hash[id] = -1;
+                parseUserActivity(data, id, plusart.Count, plusart.Depth);
+            }
+        });
+    }
+})
 
 window.data &&
     data.links.forEach(function(d) {
@@ -44,7 +87,8 @@ var w = 0,
     h = 0,
     renderTimer,
     calcTimer,
-    dgraphTimer;
+    dgraphTimer,
+    autostop;
 
 var vis;
 var alpha = d3.scale.ordinal();
@@ -132,9 +176,14 @@ var forceGraph = d3.layout.force()
     })
     ;
 forceGraph.restart = function() {
-    this.resume();
-    calcTimer = undefined;
-    d3.select("span#calcTimer").each(clickButton);
+    if (calcTimer || autostop) {
+        this.resume();
+        calcTimer = undefined;
+        d3.select("span#calcTimer").each(clickButton);
+    }
+    else {
+        vis.update();
+    }
 };
 
 plusart.redrawInit(function(d) {
@@ -200,7 +249,7 @@ function startFlow() {
             );
         },
         renderEdge : function() {
-            if (typeof params.showedge != "undefined") {
+            if (plusart.showedge) {
                 var context = this.canvas;
 
                 if (!context)
@@ -234,8 +283,7 @@ function startFlow() {
             }
         },
         renderNode : function() {
-            params.shownode = true;
-            if (typeof params.shownode != "undefined") {
+            if (typeof plusart.shownode != "undefined") {
                 var context = this.canvas;
 
                 if (!context)
@@ -535,7 +583,7 @@ function startFlow() {
                     case "article":
                     case "video":
                         res.push('<div><div>',
-                            album.content.substring(0, 100) + '...',
+                            album.content ? album.content.substring(0, 100) + '...' : "",
                         '</div></div>');
                         break;
                 }
@@ -647,10 +695,16 @@ function startFlow() {
                     if (d) {
                         d.px = (d3.event.pageX - vis.transform.translate[0]) / vis.transform.scale;
                         d.py = (d3.event.pageY - vis.transform.translate[1]) / vis.transform.scale;
+                        if (!calcTimer) {
+                            d.x = d.px;
+                            d.y = d.py;
+                        }
                         forceGraph.restart();
                     }
                 }
                 moveToolTip(d, event);
+                if (!calcTimer && !autostop)
+                    forceGraph.restart();
             })
             .node().getContext("2d");
 
@@ -707,24 +761,16 @@ function startFlow() {
     }
 
     function firstRequest() {
-        var gid = (params.gids ? params.gids : null ) || data.me.id;
+        parseParams(document.location.hash);
 
-        plusart.Count = parseInt(params.count || plusart.Count || 10);
-        plusart.Depth = parseInt(params.depth || plusart.Depth || 1);
-
-        plusart.maxResults.replies = parseInt(params.ccount || plusart.maxResults.replies || 10);
-        plusart.maxResults.plusoners = parseInt(params.ppcount || plusart.maxResults.plusoners || 10);
-        plusart.maxResults.resharers = parseInt(params.rpcount || plusart.maxResults.resharers || 10);
-
-        plusart.gids = gid.split(";");
-        plusart.useRandom = plusart.Depth < 2 && plusart.gids.length < 2;
-        plusart.gids.indexOf("me") > -1 && (plusart.gids[plusart.gids.indexOf("me")] = data.me.id);
         plusart.asyncForEach(plusart.gids, function(id) {
             if (typeof data.hash[id] == "undefined") {
                 data.hash[id] = -1;
                 parseUserActivity(data, id, plusart.Count, plusart.Depth);
             }
         });
+
+        plusart.isInit = true;
     }
 
     var now = Date.now();
@@ -746,6 +792,13 @@ function closeInterval(timer) {
     else if (window[timer]) {
         clearInterval(window[timer]);
         window[timer] = undefined;
+        if (timer == "calcTimer") {
+            autostop = autostop == undefined || autostop;
+            if (forceGraph.alpha() > 0) {
+                autostop = false;
+                forceGraph.stop();
+            }
+        }
     }
 }
 
@@ -764,7 +817,7 @@ function run_renderTimer() {
 
 function run_calcTimer() {
     closeInterval("calcTimer");
-    calcTimer = true;
+    autostop = calcTimer = true;
     forceGraph.start();
 }
 
@@ -795,11 +848,12 @@ function remakeLink(parent, old_parent, prop, decRevers) {
                     obj[prop == "target" ? "sourceNode" : "targetNode"] = pnt;
                 obj[prop == "target" ? "sourceIndex" : "targetIndex"] = index;
                 data.directHash[pref] = forceGraph.links().push(obj) - 1;
-                forceGraph.start();
+                if (calcTimer)
+                    forceGraph.start();
+                else
+                    forceGraph.restart();
             }
             incSize(pnt);
-            if (decRevers)
-                decSize(parent);
         }
         decSize(decRevers ? item : d[prop]);
         d[prop] = d[prop + "Node"] = parent;
@@ -819,7 +873,10 @@ function deleteLinks(parent, prop) {
         })
         .forEach(function (d) {
             forceGraph.links().splice(d.i, 1);
-            forceGraph.start();
+            if (calcTimer)
+                forceGraph.start();
+            else
+                forceGraph.restart();
         });
 }
 
@@ -830,12 +887,13 @@ function removeNode(item) {
 function toDirectGraph() {
     data.directHash = {};
 
-    plusart.asyncForEach(data.nodes.slice(0)
+    plusart.asyncForEach(
+    data.nodes.slice(0)
             .sort(function(a, b) {
                 return d3.ascending(a.date, b.date);
             })
             .sort(function(a, b) {
-                return d3.ascending(b.type, a.type);
+                return d3.ascending(a.type, b.type);
     }), function(item, arr) {
         var id = (item.nodeValue.hasOwnProperty("actor") ? item.nodeValue.actor : item.nodeValue).id;
         var index = data.directHash[id];
@@ -899,10 +957,12 @@ function makeApiCall() {
             data.me = resp;
 
             d3.select("#userinfo")
+                .append("div")
+                .attr("class", "userinfo")
                 .call(function(div) {
                     div.append("img")
                         .attr("src", resp.image.url);
-                    div.append("ul")
+                    /*div.append("ul")
                         .call(function(ul) {
                             ul.append("li")
                                 .append("span")
@@ -913,7 +973,20 @@ function makeApiCall() {
                             ul.append("li").append("a")
                                 .attr("href", "javascript: void(0)")
                                 .text("logout");
-                        })
+                        })*/
+                    div.append("div")
+                        .attr("class", "data")
+                        .text(resp.displayName);
+                    div.append("div")
+                        .attr("class", "lo")
+                        .on("click", function() {
+                            plusart.Storage.removeItem("accessToken");
+                            d3.select(this.parentNode)
+                                .transition()
+                                .duration(500)
+                                .style("display", "none");
+
+                        });
                 });
 
             d3.select("#menu")

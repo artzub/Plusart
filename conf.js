@@ -1,4 +1,4 @@
-var bpls = true,
+var bpls = false,
     conf = {
   API_KEY: bpls ? 'AIzaSyAsyXRlUEgHZC4RNwQ7YrsVonWVEhB-FpY' : 'AIzaSyBZFxTKwehxucjS0kisCvwfdckbsmhvuHA',
   CLIENT_ID: bpls ? '733153716518.apps.googleusercontent.com' : '10444840265-b03d2t188g55g1bss2lej59dudvhqu8c.apps.googleusercontent.com',

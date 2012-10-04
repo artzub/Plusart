@@ -12,7 +12,7 @@ plusart.useKey = false;
 plusart.useRandom = true;
 plusart.maxResults = { replies : 10, plusoners : 10, resharers : 10 };
 
-plusart.asyncForEach = function(items, fn) {
+plusart.asyncForEach = function(items, fn, time) {
     if (!(items instanceof Array))
         return;
 
@@ -20,11 +20,11 @@ plusart.asyncForEach = function(items, fn) {
 
     setTimeout(function() {
         if (workArr.length > 0)
-            fn(workArr.pop(), workArr);
+            fn(workArr.shift(), workArr);
         if (workArr.length > 0)
-            setTimeout(arguments.callee, 12);
+            setTimeout(arguments.callee, time || 4);
 
-    }, 12);
+    }, time || 4);
 };
 
 plusart.redrawInit = function (func) {
