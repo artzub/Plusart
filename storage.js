@@ -10,7 +10,7 @@ function getStorage() {
 function saveToken(token, expires_in) {
     var now = Date.now();
     var accessToken = {};
-    var msToAdd = (parseInt(expires_in) - 100) * 1000;
+    var msToAdd = (parseInt(expires_in, redix) - 100) * 1000;
     accessToken.expiration = now + msToAdd;
     accessToken.access_token = token;
     var localStorage = getStorage();

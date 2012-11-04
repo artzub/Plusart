@@ -1,6 +1,6 @@
 function refreshAccessToken() {
     function run() {
-        return run._at = run._at || getStorage().get('accessToken');
+        return getStorage().get('accessToken');
     }
     run._at = false;
     return run;
@@ -15,11 +15,22 @@ function checkAuth(callback, errorcall) {
         function handleAuthResult(authResult) {
             if (authResult && !authResult.error) {
                 saveToken(authResult.access_token, authResult.expires_in);
-                window.accessToken = refreshAccessToken();
                 callback && callback(authResult);
-            } else if(errorcall) {
-                getStorage().remove("accessToken")
-                errorcall(authResult || {error : "error auth"})
+            } else {
+                console.log("some error " + (authResult || ""));
+                getStorage().removeItem("accessToken");
+                if(errorcall) {
+                    errorcall(authResult || {error : "error auth"});
+                }
+                else {
+                    setTimeout((function(callback) {
+                        return function() {
+                            checkAuth(callback, function(error) {
+                                window.alert('Error in process auth.\n' + error);
+                            });
+                        };
+                    })(callback), 1);
+                }
             }
         });
 }

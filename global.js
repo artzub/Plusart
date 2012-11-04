@@ -1,6 +1,7 @@
 var SMALL_TIMER = 12,
     PI_CIRCLE = Math.PI * 2,
-    dateFormat = d3.time.format("%b %d,%Y %X");
+    dateFormat = d3.time.format("%b %d,%Y %X"),
+    redix = 10;
 
 (function() {
     var lastTime = 0;

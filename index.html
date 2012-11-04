@@ -33,14 +33,25 @@
     <script type="text/javascript" src="storage.js"></script>
     <script type="text/javascript" src="oauth.js"></script>
     <script type="text/javascript" src="gplus.js"></script>
+    <script type="text/javascript" src="htmlhelper.js"></script>
+    <script type="text/javascript" src="main.js"></script>
+    <!--script type="text/javascript" src="http://closure-compiler.appspot.com/code/jscd898bdefdda7ec40304431ba00213f93/default.js"></script-->
     <link type="text/css" href="style.css" rel="stylesheet">
 </head>
 <body>
-    <div id="userinfo"></div>
+    <div id="userinfo" class="dissolve"></div>
     <div id="menu" class="popup"></div>
+    <div id="tippanel" class="popup tippanel dissolve">
+        <button id="lpbtn" class="btn splitButton"></button>
+        <div class="pbody">
+            <div class="top-shdwn"></div>
+            <div class="vscroll content" id="tippanel-content">
+            </div>
+            <div class="bottom-shdwn"></div>
+        </div>
+    </div>
     <div id="tooltip" class="popup tooltip outer"></div>
     <div id="canvas"></div>
-    <script type="text/javascript" src="main.js?"></script>
     <script src="https://apis.google.com/js/client.js?onload=handleClientLoad"></script>
-  </body>
+</body>
 </html>

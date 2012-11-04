@@ -4,7 +4,7 @@
  * Time: 14:12
  */
 
-//"use strict";
+"use strict";
 var params = {};
 
 function parseParams(hash) {
@@ -17,31 +17,31 @@ function parseParams(hash) {
 
     var gid = (params.gids ? params.gids : null ) || data.me.id;
 
-    plusart.Count = parseInt(params.count || plusart.Count || 10);
-    plusart.Depth = parseInt(params.depth || plusart.Depth || 1);
+    plusart.Count = parseInt(params.count || plusart.Count || 10, redix);
+    plusart.Depth = parseInt(params.depth || plusart.Depth || 1, redix);
 
-    plusart.maxResults.replies = parseInt(params.ccount || plusart.maxResults.replies || 10);
-    plusart.maxResults.plusoners = parseInt(params.ppcount || plusart.maxResults.plusoners || 10);
-    plusart.maxResults.resharers = parseInt(params.rpcount || plusart.maxResults.resharers || 10);
+    plusart.maxResults.replies = parseInt(params["ccount"] || plusart.maxResults.replies || 10, redix);
+    plusart.maxResults.plusoners = parseInt(params["ppcount"] || plusart.maxResults.plusoners || 10, redix);
+    plusart.maxResults.resharers = parseInt(params["rpcount"] || plusart.maxResults.resharers || 10, redix);
 
     plusart.gids = gid.split(";");
     plusart.useRandom = plusart.Depth < 2 && plusart.gids.length < 2;
     plusart.gids.indexOf("me") > -1 && (plusart.gids[plusart.gids.indexOf("me")] = data.me.id);
 
-    plusart.friction = parseInt(params.friction || .9);
-    plusart.gravity = parseInt(params.gravity || .05);
-    plusart.charge = parseInt(params.charge || 10);
-    plusart.theta = parseInt(params.theta || .8);
-    plusart.linkDistance = parseInt(params.linkDistance || 1.2);
-    plusart.linkStrength = parseInt(params.linkStrength || 1.2);
+    plusart.friction = parseFloat(params.friction || .9);
+    plusart.gravity = parseFloat(params.gravity || .05);
+    plusart.charge = parseFloat(params.charge || 10);
+    plusart.theta = parseFloat(params.theta || .8);
+    plusart.linkDistance = parseFloat(params.linkDistance || 1.2);
+    plusart.linkStrength = parseFloat(params.linkStrength || 1.2);
 
-    plusart.shownode = params.shownode != undefined ? (params.shownode == '' ? true : params.shownode) : true;
-    plusart.showedge = params.showedge != undefined ? (params.showedge == '' ? true : params.showedge) : false;
+    plusart.shownode = typeof params.shownode != "undefined" ? (params.shownode == '' ? true : params.shownode) : true;
+    plusart.showedge = typeof params.showedge != "undefined" ? (params.showedge == '' ? true : params.showedge) : false;
 
-    plusart.isInit = params.reset != undefined ? false : plusart.isInit;
+    plusart.isInit = typeof params.reset != "undefined" ? false : plusart.isInit;
 }
 
-d3.select(window).on("hashchange", function(e) {
+d3.select(window).on("hashchange", function() {
     d3.event.preventDefault();
     parseParams(document.location.hash);
 
@@ -53,7 +53,10 @@ d3.select(window).on("hashchange", function(e) {
             }
         });
     }
-})
+    else
+        if (forceGraph)
+            forceGraph.restart();
+});
 
 window.data &&
     data.links.forEach(function(d) {
@@ -114,17 +117,23 @@ function collide(node) {
         ny1 = node.y - r,
         ny2 = node.y + r;
     return function(quad, x1, y1, x2, y2) {
-        if (node.visible && quad.point && (!node.fixed && !quad.point.fixed) && (quad.point !== node)) {
+        if (node.visible && quad.point && (quad.point !== node)) {
             var x = node.x - quad.point.x,
                 y = node.y - quad.point.y,
                 l = Math.sqrt(x * x + y * y),
                 r = (node.r + quad.point.r) * 1.2;
             if (l < r) {
                 l = (l - r) / l * .5;
-                node.x -= x *= l;
-                node.y -= y *= l;
-                quad.point.x += x;
-                quad.point.y += y;
+                x *= l;
+                y *= l;
+                if (!node.fixed) {
+                    node.x -= x;
+                    node.y -= y;
+                }
+                if (!quad.point.fixed) {
+                    quad.point.x += x;
+                    quad.point.y += y;
+                }
             }
         }
         return x1 > nx2
@@ -147,11 +156,11 @@ var forceGraph = d3.layout.force()
     .linkDistance(function(d) {
         var dx = d.target.r,
             dy = d.source.r,
-            dr = dx + dy;//Math.sqrt(dx * dx + dy * dy);
+            dr = dx + dy;
         return dr * 1.2;
     })
     .linkStrength(1.2)
-    .on("tick", function(e) {
+    .on("tick.redraw", function() {
         if (vis)
             vis.update();
 
@@ -162,9 +171,6 @@ var forceGraph = d3.layout.force()
 
         while (--i > -1)
             q.visit(collide(nodes[i]));
-
-        /*if (calcTimer)
-            forceGraph.alpha(.01);*/
     })
     .on("end", function() {
         calcTimer = true;
@@ -175,6 +181,7 @@ var forceGraph = d3.layout.force()
         d3.select("span#calcTimer").each(clickButton);
     })
     ;
+
 forceGraph.restart = function() {
     if (calcTimer || autostop) {
         this.resume();
@@ -233,7 +240,7 @@ function startFlow() {
             translate : [w/2, h/2],
             scale : 1
         },
-        checkVisible : function (d) {
+        checkVisible : function (d, offsetx, offsety) {
             resize();
             var tf = this.transform,
                 tx = tf.translate[0]/tf.scale,
@@ -241,11 +248,18 @@ function startFlow() {
                 ;
             d.visible = d.visible != undefined ? d.visible : true;
 
+            offsetx = offsetx || 0;
+            if (!(offsetx instanceof Array))
+                offsetx = [offsetx, offsetx];
+            offsety = offsety || 0;
+            if (!(offsety instanceof Array))
+                offsety = [offsety, offsety];
+
             return d.visible && (
-                    d.x + d.r > -tx
-                 && d.x - d.r < -tx + w/tf.scale
-                 && d.y + d.r > -ty
-                 && d.y - d.r < -ty + h/tf.scale
+                    d.x + d.r > -tx + offsetx[0]
+                 && d.x - d.r < -tx + offsetx[1] + w/tf.scale
+                 && d.y + d.r > -ty + offsety[0]
+                 && d.y - d.r < -ty + offsety[1] + h/tf.scale
             );
         },
         renderEdge : function() {
@@ -291,18 +305,31 @@ function startFlow() {
 
                 var nodes = forceGraph.nodes(),
                     i = nodes.length,
-                    d;
+                    d,
+                    c
+                    ;
 
                 while(--i > -1) {
                     d = nodes[i];
                     if (vis.checkVisible(d)) {
+                        if (plusart.showshadow || d.clicked) {
+                            context.beginPath();
+                            c = fill(0, d);
+                            //c = !d.overed ? c : c;//brighter().brighter().brighter();
+                            context.fillStyle = "rgba(" + [c.r, c.g, c.b, d.clicked ? .4 : .15] + ")";
+                            context.strokeStyle = "none";
+                            context.lineWidth = 0;
+                            context.arc(d.x + (d.clicked ? 0 : d.r * .2), d.y + (d.clicked ? 0 : d.r * .2), radius(1, d) + (d.clicked ? d.r * (!d.overed ? .15 : .35) : 0), 0, PI_CIRCLE, true);
+                            context.fill();
+                            context.stroke();
+                        }
                         for(var ind = 1; ind > -1; --ind) {
                             context.beginPath();
-                            var c = fill(ind, d);
+                            c = fill(ind, d);
                             context.fillStyle = "rgba(" + [c.r, c.g, c.b, fill_opacity(ind, d)] + ")";
                             context.strokeStyle = ind ? stroke(ind, d).toString() : "none";
                             context.lineWidth = linew(ind, d);
-                            context.arc(d.x, d.y, radius(ind, d), 0, PI_CIRCLE, true);
+                            context.arc(d.x, d.y, radius(ind, d) + (!d.overed ? 0 : radius(ind, d) * 0.2), 0, PI_CIRCLE, true);
                             context.fill();
                             context.stroke();
                         }
@@ -372,7 +399,7 @@ function startFlow() {
         .scaleExtent([.001, 100])
         .on("zoom", zoom);
 
-    function resizeWindow(event) {
+    function resizeWindow() {
         return function() {
             resize();
 
@@ -387,214 +414,12 @@ function startFlow() {
         }
     }
 
-    var tooltip = d3.select("#tooltip");
-
-    function getHeader(actor, posturl, date) {
-        return [
-        '<a class="photo" href="',
-            actor.url,
-        '">',
-            '<img src=',
-            actor.image.url,
-            '>',
-        '</a>',
-        '<div class="head">' +
-            '<header>' +
-                '<h3>' +
-                    '<a href="',
-                        actor.url,
-                    '">',
-                        actor.displayName,
-                    '</a>' +
-                '</h3>',
-                '<span class="date">' +
-                    '<a href="',
-                        posturl,
-                        '" target="_blank" class="">',
-                        date ? dateFormat(new Date(date)) + (posturl == actor.url ? " — look profile" : " — look post") : 'original post',
-                    '</a>' +
-                '</span>' +
-            '</header>' +
-        '</div>'].join("");
-    }
-
-    function getContent(post) {
-        if (!post)
-            return "";
-
-        var cont = ['<div class="m-l62 content">'];
-
-        if (post.verb == "share") {
-            if (post.annotation) {
-                cont.push(
-                    '<div class="post-an">',
-                        '<div>',
-                            post.annotation,
-                        '</div>',
-                    '</div>'
-                );
-            }
-            cont.push(
-                getHeader(post.object.actor, post.object.url),
-                '<div class="m-l62">'
-            );
-        }
-        cont.push(
-                '<div>',
-                    post.object.content,
-                '</div>',
-            post.verb == "share" ? '</div></div>' : '</div>'
-        );
-
-        return cont.join("");
-    }
-
-    function getAttachments(post) {
-        if(!post || !post.object.attachments || !post.object.attachments.length)
-            return "";
-        var albUrl = post.object.attachments.length < 2 ? post.url : false,
-            albName = post.object.attachments.length + ' photos',
-            type;
-
-        var album = post.object.attachments[0];
+    var tooltip = d3.select("#tooltip"),
+        tippanel = d3.select("#tippanel"),
+        tp_content = d3.select("#tippanel-content");
 
 
-        switch (album.objectType) {
-            case "photo-album":
-                type = "photo";
-            case "video":
-            case "article":
-                albName = album.displayName;
-                albUrl = album.url;
-                type = type || album.objectType;
-                break;
-            case "photo":
-                albUrl = albUrl || album.url.replace(/\/\d+$/, "");
-                type = album.objectType;
-                break;
-            default:
-                return "";
-        }
-
-        var i = 0,
-            index;
-
-        return '<div class="attachments">' +
-            (type == 'article' ? '<div class="article"><div class="top-shdwn"></div>' : '<div class="top-shdwn"></div>') +
-        post.object.attachments.filter(function(d, id) {
-            return (["photo", "video"].indexOf(d.objectType) > -1 || (d.objectType == "photo-album" && d.image)) && i++ < 1 && ((index = id) || true);
-        }).map(function(d){
-            var cont = [];
-            var isGif;
-            switch (d.objectType) {
-                case "photo-album":
-                case "photo":
-                    if (!d.image)
-                        break;
-                    cont.push(
-                        '<a target="_blank" href="',
-                            type == "article" ? d.fullImage.url : d.url,
-                        '">',
-                            '<img src="',
-                                type == "article" ? d.image.url : (isGif = /\.gif$/.test(d.content)) ? d.fullImage.url
-                                    : d.image.url.replace(/(gadget=a&).*/,
-                                        "$1resize_h=200&url=") + encodeURI(d.fullImage.url),
-                            '">',
-                        '</a>'
-                    )
-                    break;
-                case "video":
-                    cont.push('<a target="_blank" href="',
-                        d.url,
-                    '">',
-                        '<img src="',
-                            d.image.url.replace(/resize_h=100/, 'resize_h=279&resize_w=497'),
-                        '" width="100%" height="100%">',
-                    '</a>');
-                    break;
-                case "article":
-
-                    break;
-            }
-            return cont.join("");
-        }).join("") +
-            (function(type) {
-                if (!type)
-                    return "";
-                var res = [];
-                res.push('<div class="tip-', type, type == "photo" && post.object.attachments.length > 1 ? ' max-h80"' : '"', '><div>',
-                            '<div><div>',
-                                type == "article" ? [
-                                    '<img ',
-                                        'src="',
-                                            'https:\/\/s2.googleusercontent.com\/s2\/favicons?domain=',
-                                            album.url.replace(/https?:\/\/(.*?)\/.*/, "$1"),
-                                    '">'].join("") : "",
-                                '<a target="_blank" ',
-                                    type == "article" ? "" : 'style="color:#ffffff!important;',
-                                    type == 'video' ? 'font-weight: bold;' : "",
-                                    '" href="',
-                                    albUrl,
-                                '">',
-                                    albName,
-                                '</a>',
-                            '</div></div>');
-                switch (type) {
-                    case "photo":
-                        if (post.object.attachments.length > 1)
-                            res.push(
-                            '<div class="gl">',
-                                post.object.attachments.filter(function(d, i) {
-                                    return i != index;
-                                }).map(function(d){
-                                    var cont = [];
-                                    switch (d.objectType) {
-                                        case "photo-album":
-                                        case "photo":
-                                            if (!d.image)
-                                                break;
-                                            cont.push(
-                                                '<a target="_blank" href="',
-                                                    d.url,
-                                                '">',
-                                                    '<img src="',
-                                                        d.image.url,
-                                                        '" width="',
-                                                        d.image.width,
-                                                        '" height="',
-                                                        d.image.height,
-                                                        '" class="data" style="width:',
-                                                        d.image.width,
-                                                        ';"',
-                                                    '">',
-                                                '</a>'
-                                            )
-                                            break;
-                                    }
-                                    return cont.join("");
-                                }).join(""),
-                                '</div>',
-                                '<div><div>',
-                                    '<a target="_blank" href="',
-                                        post.url,
-                                    '">Look post</a>',
-                                '</div></div>');
-                        break;
-                    case "article":
-                    case "video":
-                        res.push('<div><div>',
-                            album.content ? album.content.substring(0, 100) + '...' : "",
-                        '</div></div>');
-                        break;
-                }
-                res.push('</div></div>');
-                return res.join("");
-            })(type) +
-        (type == "article" ? "</div>" : '<div class="bottom-shdwn"></div>') +
-        '</div>';
-    }
-
-    function showToolTip(d, event) {
+    function showToolTip(d) {
         if (!d) {
             tooltip.style("display", "none");
             return;
@@ -605,13 +430,12 @@ function startFlow() {
                 post = d.nodeValue && d.nodeValue.kind && d.nodeValue.kind == "plus#activity" ? d.nodeValue : undefined;
 
             tooltip.selectAll("*").remove();
-            var cont = "";
-
-            cont = [
+            var cont = [
                 '<div class="post">',
                     getHeader(actor, post ? post.url : actor.url, d.date),
                     getContent(post),
                     getAttachments(post),
+                    getStatistic(post),
                 '</div>'
             ].join('');
 
@@ -631,14 +455,17 @@ function startFlow() {
             tooltip.html(cont);
             tooltip.style("display", "block");
             tooltip.selectAll("a").attr("target", "_blank");
+            tooltip.classed('fixed', false);
+            if (vis.fixedItem == d)
+                tooltip.classed('fixed', true);
         }
     }
 
     function moveToolTip(d, event) {
         if (d) {
             tooltip
-                .style("top", event.pageY > h * 2.5 / 4 ? (event.pageY - tooltip.node().clientHeight - 6) + "px" : (event.pageY + 12) + "px")
-                .style("left", event.pageX > w * 2.5 / 4 ? (event.pageX - tooltip.node().clientWidth - 6) + "px" : (event.pageX + 12) + "px")
+                .style("top", event.pageY > h * 3 / 4 ? (event.pageY - tooltip.node().clientHeight - 3) + "px" : (event.pageY + 3) + "px")
+                .style("left", event.pageX > w * 3 / 4 ? (event.pageX - tooltip.node().clientWidth - 3) + "px" : (event.pageX + 3) + "px")
                 ;
         }
     }
@@ -646,8 +473,185 @@ function startFlow() {
     var resizeTimer;
     d3.select(window).on("onresize", function() {
         clearTimeout(resizeTimer);
-        resizeTimer = setTimeout(resizeWindow(d3.event), 100);
+        resizeTimer = setTimeout(resizeWindow(), 100);
     });
+
+    function movemc(d) {
+        var item = arguments.length > 1 && arguments[1] instanceof HTMLCanvasElement ? arguments[1] : this;
+        delete vis["click"];
+        if (!vis.dragOn) {
+            d = null;
+            if (data.hasOwnProperty("selected")) {
+                var od = data.getSelected();
+                if (vis.contain(od, d3.mouse(item)))
+                    d = od;
+                if (!d) {
+                    od && (od.fixed &= 3);
+                    delete data["selected"];
+                    d3.select("body").style("cursor", "default");
+                }
+            }
+            else
+                d = vis.getNodeFromPos(d3.mouse(item));
+
+            if (d) {
+                data.selected = d.index;
+                d.fixed |= 4;
+                d3.select("body").style("cursor", "pointer");
+                forceGraph.restart();
+            }
+            tooltip
+                .on("mousemove.tooltip", null)
+                .classed("op30", false);
+            showToolTip(d, d3.event);
+        }
+        else {
+            d = data.getSelected();
+            if (d) {
+                d.px = (d3.event.pageX - vis.transform.translate[0]) / vis.transform.scale;
+                d.py = (d3.event.pageY - vis.transform.translate[1]) / vis.transform.scale;
+                if (!calcTimer) {
+                    d.x = d.px;
+                    d.y = d.py;
+                }
+                tooltip
+                    .on("mousemove.tooltip", function() {
+                        d = data.getSelected();
+                        if (d) {
+                            d.px = (d3.event.pageX - vis.transform.translate[0]) / vis.transform.scale;
+                            d.py = (d3.event.pageY - vis.transform.translate[1]) / vis.transform.scale;
+                            if (!calcTimer) {
+                                d.x = d.px;
+                                d.y = d.py;
+                            }
+                            forceGraph.restart();
+                        }
+                    })
+                    .classed("op30", true);
+                forceGraph.restart();
+            }
+        }
+        moveToolTip(d, d3.event);
+        if (!calcTimer && !autostop)
+            forceGraph.restart();
+    }
+
+    function getRealPos(d) {
+        return {
+            pageX:d.x * vis.transform.scale + vis.transform.translate[0],
+            pageY:d.y * vis.transform.scale + vis.transform.translate[1]
+        };
+    }
+
+    function addItemToTipPanel(item) {
+        if(tp_content.selectAll("#postid-" + item.nodeValue.id.replace('.', '_')).empty())
+            tp_content.append("div")
+                .attr("id", "postid-" + item.nodeValue.id.replace('.', '_'))
+                .attr("class", "userinfo")
+                .style("opacity", "0")
+                .call(function(div) {
+                    var value = item.nodeValue,
+                        actor = value.actor || value;
+
+                    div.datum(item);
+
+                    div.append("img")
+                        .style("pointer-events", "none")
+                        .attr("src", actor.image.url);
+                    div.append("div")
+                        .style("pointer-events", "none")
+                        .attr("class", "data")
+                        .call(function(ddiv) {
+                            ddiv.append("strong").text(actor.displayName);
+                            if (value.title || (item.type == 2 && value.object.content)) {
+                                ddiv.append("br");
+                                ddiv.append("small").text(item.type != 2 ? value.title : ddiv.append("div").style("display", "none").attr("id", "temp-for-one").html(value.object.content).text());
+                                ddiv.select("#temp-for-one").remove();
+                                ddiv.append("br");
+                                ddiv.append("div").html(getStatistic(value));
+                            }
+                        });
+
+                    div.on("click", function(d) {
+                        var item = d3.select(this);
+                        var tg = !item.classed('opposite');
+                        tp_content.selectAll('.userinfo').classed('opposite', false);
+                        item.classed('opposite', tg);
+                        vis.fixedItem = false;
+                        if (tg) {
+                            vis.fixedItem = d;
+                        }
+                    });
+
+                    div.on("mouseover", function(d){
+                        if (tp_content.focusTimer)
+                            clearTimeout(tp_content.focusTimer);
+                        tp_content.focusTimer = setTimeout((function(d) {
+                            return function() {
+                                if (!d.overed) {
+                                    d.overed = true;
+                                    var cord = getRealPos(d);
+
+                                    if (d.visible && !vis.checkVisible(d, [tp_content.node().clientWidth, 0])) {
+                                        vis.transform.translate = [
+                                            (w/* + tp_content.node().clientWidth*/)/2 - cord.pageX + vis.transform.translate[0],
+                                            h/2 - cord.pageY + vis.transform.translate[1]
+                                        ];
+                                        zoomBehavior.translate(vis.transform.translate);
+                                        cord = getRealPos(d);
+                                    }
+
+                                    showToolTip(d);
+                                    moveToolTip(d, cord);
+                                    tooltip.style("opacity", 1);
+                                    forceGraph.restart();
+                                }
+                            }
+                        })(d), 150);
+                    });
+
+                    function deover(d) {
+                        if (tp_content.focusTimer)
+                            clearTimeout(tp_content.focusTimer);
+                        delete d['overed'];
+                        tooltip.style("opacity", null);
+                        showToolTip(null);
+                    }
+
+                    div.on("mouseout", function(d){
+                        deover(d);
+                        forceGraph.restart();
+                    });
+
+                    div.append("div")
+                        .attr("class", "lo")
+                        .on("click", (function(d) {
+                            return function () {
+                                d.fixed &= 1;
+                                d.clicked = !d.clicked;
+                                deover(d);
+                                removeItemFromTipPanel(d);
+                                forceGraph.restart();
+                            }
+                        })(item));
+                })
+                .transition()
+                .duration(500)
+                .style("opacity", "1");
+        return true;
+    }
+
+    function removeItemFromTipPanel(item) {
+        if (vis.fixedItem == item)
+            vis.fixedItem = false;
+        delete item['overed'];
+        tp_content.selectAll("#postid-" + item.nodeValue.id.replace('.', '_'))
+            .transition()
+            .duration(500)
+            .style("opacity", "0")
+            .remove();
+        return false;
+    }
 
     vis.canvas = d3.select("body")
             .append("canvas")
@@ -657,6 +661,7 @@ function startFlow() {
                 (d = data.getSelected())
                 && (vis.dragOn = true)
                 && (d3.select("body").style("cursor", "move"))
+                && (vis.click = true)
                 && (d.fixed |= 2);
             })
             .on("mouseup.canvas", function(d) {
@@ -664,48 +669,10 @@ function startFlow() {
                 (d = data.getSelected())
                 && (zoomBehavior.translate(vis.transform.translate)
                     .scale(vis.transform.scale))
-                && (d.fixed &= 1);
+                && !((!vis.click && d.clicked) || (vis.click && ((d.clicked = !d.clicked) ? addItemToTipPanel(d) : removeItemFromTipPanel(d))))
+                && !(d.fixed &= 1) && movemc(null, vis.canvas.canvas);
             })
-            .on("mousemove.canvas", function(d) {
-                if (!vis.dragOn) {
-                    d = null;
-                    if (data.hasOwnProperty("selected")) {
-                        var od = data.getSelected();
-                        if (vis.contain(od, d3.mouse(this)))
-                            d = od;
-                        if (!d) {
-                            od && (od.fixed &= 3);
-                            delete data["selected"];
-                            d3.select("body").style("cursor", "default");
-                        }
-                    }
-                    else
-                        d = vis.getNodeFromPos(d3.mouse(this));
-
-                    if (d) {
-                        data.selected = d.index;
-                        d.fixed |= 4;
-                        d3.select("body").style("cursor", "pointer");
-                        forceGraph.restart();
-                    }
-                    showToolTip(d, d3.event);
-                }
-                else {
-                    d = data.getSelected();
-                    if (d) {
-                        d.px = (d3.event.pageX - vis.transform.translate[0]) / vis.transform.scale;
-                        d.py = (d3.event.pageY - vis.transform.translate[1]) / vis.transform.scale;
-                        if (!calcTimer) {
-                            d.x = d.px;
-                            d.y = d.py;
-                        }
-                        forceGraph.restart();
-                    }
-                }
-                moveToolTip(d, event);
-                if (!calcTimer && !autostop)
-                    forceGraph.restart();
-            })
+            .on("mousemove.canvas", movemc)
             .node().getContext("2d");
 
     resizeWindow()();
@@ -747,12 +714,12 @@ function startFlow() {
     }
 
     function stroke(i, d) {
-        return isChecked(d) ? colors(d.type)/*.darker().darker()*/.darker().darker() : "#666";
+        return !isChecked(d) ? "#666" : colors(d.type)/*.darker().darker()*/.darker().darker();
     }
 
     function title(d) {
-        return (d.type == 1 || d.type == 2 ? d.nodeValue.title :
-            (d.nodeValue.hasOwnProperty("actor") ? d.nodeValue.actor : d.nodeValue).displayName);
+        return d.type == 1 || d.type == 2 ? d.nodeValue.title :
+            (d.nodeValue.hasOwnProperty("actor") ? d.nodeValue.actor : d.nodeValue).displayName;
     }
 
     function radius(i, d) {
@@ -773,8 +740,6 @@ function startFlow() {
         plusart.isInit = true;
     }
 
-    var now = Date.now();
-
     firstRequest();
     run_renderTimer();
     run_calcTimer();
@@ -793,7 +758,7 @@ function closeInterval(timer) {
         clearInterval(window[timer]);
         window[timer] = undefined;
         if (timer == "calcTimer") {
-            autostop = autostop == undefined || autostop;
+            autostop = typeof autostop == "undefined" || autostop;
             if (forceGraph.alpha() > 0) {
                 autostop = false;
                 forceGraph.stop();
@@ -805,7 +770,7 @@ function closeInterval(timer) {
 function run_renderTimer() {
     closeInterval("renderTimer");
     renderTimer = true;
-    (function animloop(time){
+    (function animloop(){
         if (renderTimer)
             requestAnimationFrame(animloop);
         if (!vis.valide) {
@@ -894,7 +859,7 @@ function toDirectGraph() {
             })
             .sort(function(a, b) {
                 return d3.ascending(a.type, b.type);
-    }), function(item, arr) {
+    }), function(item) {
         var id = (item.nodeValue.hasOwnProperty("actor") ? item.nodeValue.actor : item.nodeValue).id;
         var index = data.directHash[id];
         if (typeof index == "undefined") {
@@ -999,13 +964,23 @@ function makeApiCall() {
                             .text(String)
                             .append("span")
                             .attr("class", function(d) { return d == "dgraph" ? "paused" : ""})
-                            .text(function(d) { return d3.select(this).classed("paused") ? "►" : "■"; })
+                            .text(function() { return d3.select(this).classed("paused") ? "►" : "■"; })
                             .attr("id", function(d) {
                                 return d + "Timer";
                             })
                             .on("click", clickButton);
                 });
+            d3.select("#tippanel").style("display", "block");
+            d3.select("#lpbtn").on("click", function(item) {
+                item = d3.select(this.parentNode);
+                if (item.classed("open"))
+                    item.classed("open", false);
+                else
+                    item.classed("open", true);
+            });
             startFlow();
         });
     });
 }
+
+

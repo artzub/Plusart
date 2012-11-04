@@ -22,9 +22,9 @@ plusart.asyncForEach = function(items, fn, time) {
         if (workArr.length > 0)
             fn(workArr.shift(), workArr);
         if (workArr.length > 0)
-            setTimeout(arguments.callee, time || 4);
+            setTimeout(arguments.callee, time || 1);
 
-    }, time || 4);
+    }, time || 1);
 };
 
 plusart.redrawInit = function (func) {
