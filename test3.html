@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title></title>
+    <style>
+        html,
+        body {
+            position: relative;
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100%;
+        }
+
+        .gallery-container {
+            position: relative;
+            overflow: hidden;
+            width: 100%;
+            height: 100%;
+        }
+
+        .node,
+        .centralNode {
+            position: absolute;
+            top: -1000px;
+            left: -1000px;
+            display: block;
+            z-index: 0;
+        }
+
+        .centralNode {
+            z-index: 1;
+        }
+
+        .node img {
+            max-width: 200px;
+            max-height: 160px;
+        }
+
+        .node img.v {
+            max-width: 160px;
+            max-height: 200px;
+        }
+    </style>
+    <script type="text/javascript" src="d3.v2.js"></script>
+</head>
+<body>
+    <div id="gallery"></div>
+    <script type="text/javascript">
+        var w = d3.max([
+                    document.body.clientWidth,
+                    window.innerWidth
+            ]),
+            h = /*960*/
+                d3.max([
+                document.body.clientHeight,
+                window.innerHeight
+            ]) - 5,
+            w2 = w / 2,
+            h2 = h / 2,
+            ry = h2 - h2 / 8,
+            rx = w2 - w2 / 8,
+            base_h = h2 - h2 / 4,
+            base_w = 0.96 * base_h,
+            cluster = d3.layout.cluster()
+                .size([base_w, base_h])
+                .sort(function(a, b) {
+                    return d3.ascending(a.order, b.order);
+                })
+                .value(function(d) { return d.size; }),
+            bundle = d3.layout.bundle(),
+            line = d3.svg.line.radial()
+                .interpolate("bundle")
+                .tension(.85)
+                .radius(function(d) {
+                        return d.y;
+                })
+                .angle(function(d) {
+                        return d.x / 180 * Math.PI;
+                })
+            ;
+
+        var g = d3.select("body").selectAll("#gallery");
+        g.classed("gallery-container", true);
+
+        d3.json('imgs.json', function(data) {
+            var root = { size : 0 };
+            root.children = data;
+            root.children.forEach( function(d, i) {
+                d.isFocused = i == 1;
+                d.size = Math.sqrt(Math.pow(d.preview.w, 2) + Math.pow(d.preview.w, 2));
+                d.parent = root;
+                d.order = i;
+                d.preview.vertical = d.preview.w - d.preview.h < 0;
+                d.origin.vertical = d.origin.w - d.origin.h < 0;
+                return d;
+            });
+
+            var nodes = cluster(root),
+                rootIndex = 0,
+                links = nodes.filter(function(d, i) {
+                    return !d.children || ((rootIndex = i) && false);
+                }).map(function(d) {
+                    return {source : nodes[rootIndex], target : d};
+                });
+
+            var centralNode = g.selectAll(".centralNode")
+                .data(nodes.filter(function(d) { return !d.children && d.data.isFocused; }))
+                .enter()
+                .append("div")
+                .attr("class", "centralNode")
+                .style("top", function(d) {
+                    return ry - ((d.data.origin.h > base_h - 40 ? base_h - 40 : d.data.origin.h ) / 4) + "px"
+                })
+                .style("left", function(d) {
+                    return rx - ((d.data.origin.w > base_w - 40 ? base_w - 40 : d.data.origin.w ) / 2) + "px"
+                })
+                .call(function(div) {
+                    div.append("img")
+                        .attr("src", function(d) {
+                            return d.data.origin.url;
+                        })
+                        .style("width", function(d) {
+                            return d.data.origin.w + "px";
+                        })
+                        .style("height", function(d) {
+                            return d.data.origin.h + "px";
+                        })
+                        .style("max-width", function(d) {
+                            return (d.data.origin.vertical ? base_w : ((base_h - 40) * d.data.origin.w / d.data.origin.h) ) + "px"
+                        })
+                        .style("max-height", function(d) {
+                            return (d.data.origin.vertical ? base_w * d.data.origin.h / d.data.origin.w : base_h - 40 ) + "px"
+                        })
+                        ;
+                });
+
+            var nodeGallery = g.selectAll(".node")
+                .data(nodes.filter(function(d) { return !d.children && !d.data.isFocused; }))
+                    .enter()
+                    .append("div")
+                    .attr("class", "node")
+                    .style("top", function(d) {
+                        return ry + "px";
+                    })
+                    .style("-webkit-transform", function(d) {
+                        return "rotate(" + (d.x - 90) + "deg) translateY(" + d.y + "px)"
+                    })
+                    .style("-moz-transform", function(d) {
+                        return "rotate(" + (d.x - 90) + "deg) translateY(" + d.y + "px)"
+                    })
+                    .style("left", function(d) {
+                        return rx + "px";
+                    })
+                    .call(function(div) {
+                        div.append("img")
+                            .attr("src", function(d) {
+                                return d.data.preview.url;
+                            })
+                            .style("width", function(d) {
+                                return d.data.preview.w + "px";
+                            })
+                            .style("height", function(d) {
+                                return d.data.preview.h + "px";
+                            })
+                            .classed("v", function(d) {
+                                return d.data.preview.w - d.data.preview.h < 0;
+                            });
+                    });
+        });
+    </script>
+</body>
+</html>

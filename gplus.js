@@ -2,18 +2,37 @@ function urlListActivities(id) {
     return conf.BASE_REQUEST_URI + 'people/' + (id || 'me') + '/activities/public?maxResults=10'
 }
 
-function incSize(item) {
-    item.linkDegree++;
-    item.r++;
+function addDirectNodeData(data, id, index) {
+    return (data.directHash = data.directHash || {}) && data.directHash[id]
+        || (data.directHash[id] = {
+            index : typeof index != "undefined" ? index : -1,
+            id : id,
+            out : 0,
+            in : 0,
+            r : MIN_SIZE_NODE + 3,
+            linkDegree : MIN_LD_NODE
+        })
+        ;
 }
 
-function decSize(item) {
-    item.linkDegree--;
-    item.linkDegree = item.linkDegree < 0 ? 0 : item.linkDegree;
-    item.r--;
-    item.r = item.r < 0 ? 0 : item.r;
+function addDirectLink(data, parent, child) {
+    data.directLinks = data.directLinks || {};
+    var item = parent.id + "_" + child.id;
+    item = data.directLinks[item] || (data.directLinks[item] = {
+        source: data.nodes[child.index],
+        sourceIndex : child.index,
+        sourceNode: child,
+        target: data.nodes[parent.index],
+        targetIndex : parent.index,
+        targetNode: parent,
+        size : 0
+    });
+    if (item.size++ == 0) {
+        child.out++;
+        parent.in++;
+    }
+    return item;
 }
-
 
 function addChildNode(data, parent, type, value, random) {
     var i,
@@ -25,8 +44,8 @@ function addChildNode(data, parent, type, value, random) {
     var child = {
         x: random ? w/2 * Math.random() * (Math.round((Math.random() * 2) % 2) ? -1 : 1) : parent.x + (parent.r * 2) * Math.cos(2 * Math.PI * Math.random()),
         y: random ? h/2 * Math.random() * (Math.round((Math.random() * 2) % 2) ? -1 : 1) : parent.y + (parent.r * 2) * Math.sin(2 * Math.PI * Math.random()),
-        r: 4,
-        linkDegree: 0,
+        r: MIN_SIZE_NODE + 3,
+        linkDegree: MIN_LD_NODE,
         type: type,
         nodeValue: value,
         date : d3.max([dp, du]),
@@ -37,8 +56,39 @@ function addChildNode(data, parent, type, value, random) {
     if (plusart.redraw)
         plusart.redraw(child);
 
-    if (type != 1 && typeof data.hash[id] != "undefined" && data.hash[id] > 0)
-        incSize(data.nodes[data.hash[id]]);
+    if (type != 1) {
+        var dnc = addDirectNodeData(data, id, child.index),
+            idp = parent.nodeValue.actor.id,
+            dnp, chc, chp;
+
+        if (data.hash.hasOwnProperty(id) && data.hash[id] > 0) {
+            if (chc = dnc.index != data.hash[id])
+                dnc.index = data.hash[id];
+            incSize(data.nodes[dnc.index]);
+        }
+
+        dnp = addDirectNodeData(data, idp, data.hash[idp]);
+        if (data.hash.hasOwnProperty(idp) && data.hash[idp] > 0
+            && (chp = data.hash[idp] != dnp.index))
+            dnp.index = data.hash[idp];
+
+        incSize(dnp);
+        incSize(dnc);
+
+        dl = addDirectLink(data, dnp, dnc);
+
+        if (chc) {
+            dl.source = data.nodes[dnc.index];
+            dl.sourceIndex = dnc.index;
+            dl.sourceNode = dnc;
+        }
+
+        if (chp) {
+            dl.target = data.nodes[dnp.index];
+            dl.targetIndex = dnp.index;
+            dl.targetNode = dnp;
+        }
+    }
 
     incSize(parent);
     incSize(child);
@@ -49,7 +99,8 @@ function addChildNode(data, parent, type, value, random) {
         sourceNode: child,
         target: parent,
         targetIndex : parent.index,
-        targetNode: parent
+        targetNode: parent,
+        size : 1
     });
     if (plusart.redraw)
         plusart.redraw();
@@ -128,17 +179,18 @@ function parseUserActivity(data, id, count, depth, nextPage) {
                         type : 0,
                         nodeValue : item.actor,
                         date : d3.max([dp, du]),
-                        dates : [],
                         index : 0
                     };
+
                     parent.index = data.hash[item.actor.id] = data.nodes.push(parent) - 1;
+                    addDirectNodeData(data, item.actor.id, parent.index);
+
                     if (plusart.redraw)
                         plusart.redraw(data.nodes[parent.index]);
                 }
                 else {
                     parent = data.nodes[i];
                 }
-                parent.dates.push(d3.max([dp, du]));
 
                 i = addChildNode(data, parent, 1, item, plusart.useRandom);
 
@@ -166,7 +218,7 @@ function parseUserActivity(data, id, count, depth, nextPage) {
         //'fields' : 'nextPageToken,items(actor(displayName,id),id,object(actor(displayName,id),plusoners,replies,resharers),published,updated,verb)',
         userId : id,
         collection : 'public',
-        maxResults : 10,
+        maxResults : count - 100 >= 0 ? 100 : count,
         pageToken : nextPage
     }).execute(run(data, id, count, depth));
 }

@@ -4,6 +4,11 @@
  * Time: 13:56
  */
 
+    /** minimal size of node */
+var MIN_SIZE_NODE = 1,
+    /** minimal link degree of node */
+    MIN_LD_NODE = 0;
+
 window.plusart = window.plusart || {};
 
 plusart.Count = 10;
@@ -40,5 +45,21 @@ plusart.Storage = (function Storage(webstorage) {
     };
     return webstorage;
 })(window.localStorage);
+
+function incSize(item) {
+    item.linkDegree = item.linkDegree || MIN_LD_NODE;
+    item.r = item.r || MIN_SIZE_NODE;
+    item.linkDegree++;
+    item.r++;
+}
+
+
+
+function decSize(item) {
+    item.linkDegree--;
+    item.linkDegree = item.linkDegree < MIN_LD_NODE ? MIN_LD_NODE : item.linkDegree;
+    item.r--;
+    item.r = item.r < MIN_SIZE_NODE ? MIN_SIZE_NODE : item.r;
+}
 
 

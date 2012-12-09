@@ -37,6 +37,7 @@ function parseParams(hash) {
 
     plusart.shownode = typeof params.shownode != "undefined" ? (params.shownode == '' ? true : params.shownode) : true;
     plusart.showedge = typeof params.showedge != "undefined" ? (params.showedge == '' ? true : params.showedge) : false;
+    plusart.showdirectedge = true;
 
     plusart.isInit = typeof params.reset != "undefined" ? false : plusart.isInit;
 }
@@ -66,8 +67,10 @@ window.data &&
 
 window.data = window.data || {
     hash : {},
+    directHash: {},
     nodes : [],
-    links : []
+    links : [],
+    directLinks: {}
 };
 
 data.getIdByIndex = function(i) {
@@ -99,7 +102,7 @@ var alpha = d3.scale.ordinal();
 function callAlpha(d) {
     if (d) {
         var arr = alpha.domain().concat(
-                [d.date = (d.type == 0 && d.dates.length && d3.max(d.dates)) || d.date]);
+                [d.date]);
         var i = .5 / (arr.length || 1); //1;
         alpha.range(d3.range(.1, .5, i));
         alpha.domain(
@@ -262,38 +265,47 @@ function startFlow() {
                  && d.y - d.r < -ty + offsety[1] + h/tf.scale
             );
         },
+        typesEdge : {
+            common : 0,
+            direct : 1
+        },
+        makeEdge : function(context, styleEdge, typeEdge) {
+            return function(d) {
+                var c = fill(1, d.source);
+                context.strokeStyle = "rgba(" + [c.r, c.g, c.b, fill_opacity(1, d.source)] + ")";
+                context.lineWidth = typeEdge ? d.size : 1;//linew(1, d.target);
+                context.lineCap = "round";
+
+                var xs = d.source.x,
+                    ys = d.source.y,
+                    xt = d.target.x,
+                    yt = d.target.y;
+
+                if (vis.checkVisible(d.source) || vis.checkVisible(d.target)) {
+                    context.beginPath();
+                    context[styleEdge](xs, ys, xt, yt);
+                    context.stroke();
+                }
+            }
+        },
         renderEdge : function() {
-            if (plusart.showedge) {
+            if (plusart.showdirectedge || plusart.showedge) {
                 var context = this.canvas;
 
                 if (!context)
                     return;
 
-                //plusart.asyncForEach(
-                        forceGraph.links().forEach(function (d) {
+                if (!vis.directMode && plusart.showdirectedge)
+                    d3.values(data.directLinks).forEach(
+                        this.makeEdge(context,
+                            "dottedLine",
+                            this.typesEdge.direct));
 
-                    var c = fill(1, d.source);
-                    context.strokeStyle = "rgba(" + [c.r, c.g, c.b, fill_opacity(1, d.source)] + ")";
-
-                    //context.strokeStyle = colors(d.source.type).toString();
-                    context.lineWidth = 1;//linew(1, d.target);
-
-                    var xs = d.source.x,
-                        ys = d.source.y,
-                        xt = d.target.x,
-                        yt = d.target.y;
-
-                    if (vis.checkVisible(d.source) || vis.checkVisible(d.target)) {
-                        context.beginPath();
-                        context.moveTo(xs, ys);
-                        var x3 = .3 * yt - .3 * ys + .8 * xs + .2 * xt,
-                            y3 = .8 * ys + .2 * yt - .3 * xt + .3 * xs,
-                            x4 = .3 * yt - .3 * ys + .2 * xs + .8 * xt,
-                            y4 = .2 * ys + .8 * yt - .3 * xt + .3 * xs;
-                        context.bezierCurveTo(x3, y3, x4, y4, xt, yt);
-                        context.stroke();
-                    }
-                });
+                if (plusart.showedge)
+                    forceGraph.links().forEach(
+                        this.makeEdge(context,
+                            "bizierLine",
+                            this.typesEdge.common));
             }
         },
         renderNode : function() {
@@ -850,7 +862,7 @@ function removeNode(item) {
 }
 
 function toDirectGraph() {
-    data.directHash = {};
+    /*data.directHash = {};
 
     plusart.asyncForEach(
     data.nodes.slice(0)
@@ -880,8 +892,42 @@ function toDirectGraph() {
             remakeLink(parent, item, "source", true);
             removeNode(item);
         }
-    });
+    });*/
 
+    if (!data.directMode) {
+        (function(ids){
+            //plusart.asyncForEach(
+            forceGraph.nodes().forEach( function(d) {
+                d.visible = ids.indexOf(d.index) > -1;
+            });
+        })(d3.values(data.directHash).map(function(d) {
+            data.nodes[d.index].br = data.nodes[d.index].r;
+            data.nodes[d.index].blinkDegree = data.nodes[d.index].linkDegree;
+            data.nodes[d.index].r = d.r;
+            data.nodes[d.index].linkDegree = d.linkDegree;
+            return d.index;
+        }));
+        forceGraph.links(d3.values(data.directLinks));
+        data.directMode = vis.directMode = true;
+    }
+    else {
+        data.directMode = vis.directMode = false;
+        forceGraph.links(data.links);
+        (function(ids){
+            //plusart.asyncForEach
+            forceGraph.nodes().forEach(function(d) {
+                d.visible = true;
+            });
+        })(d3.values(data.directHash).map(function(d) {
+            data.nodes[d.index].r = data.nodes[d.index].br;
+            data.nodes[d.index].linkDegree = data.nodes[d.index].blinkDegree;
+            return d.index;
+        }));
+    }
+    if (calcTimer)
+        forceGraph.start();
+    else
+        forceGraph.restart();
 }
 
 function run_dgraphTimer() {
