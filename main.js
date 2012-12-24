@@ -7,25 +7,34 @@
 "use strict";
 var params = {};
 
-function parseParams(hash) {
+function parseParams(loc) {
     params = {};
-    hash.replace(/^#/, "").split("&").forEach(function(item) {
+    loc.hash.replace(/^#/, "").split("&").forEach(function(item) {
         var values = item.toLowerCase().split("=");
         var key = values[0];
         params[key] = values.length > 1 ? values[1] : "";
     });
 
-    var gid = (params.gids ? params.gids : null ) || data.me.id;
+    var cid = params.cids || "";
+    plusart.cmBeginPos = parseInt(params.cmbp || 0);
+    plusart.cmBeginPos = plusart.cmBeginPos < 0 ? 0 : plusart.cmBeginPos;
+
+
+    var gid = params.gids || data.me.id;
 
     plusart.Count = parseInt(params.count || plusart.Count || 10, redix);
     plusart.Depth = parseInt(params.depth || plusart.Depth || 1, redix);
+
+    plusart.membersCount = parseInt(params.cmcount || 10, redix);
 
     plusart.maxResults.replies = parseInt(params["ccount"] || plusart.maxResults.replies || 10, redix);
     plusart.maxResults.plusoners = parseInt(params["ppcount"] || plusart.maxResults.plusoners || 10, redix);
     plusart.maxResults.resharers = parseInt(params["rpcount"] || plusart.maxResults.resharers || 10, redix);
 
+    plusart.cids = cid == "" ? "" : cid.split(";");
+
     plusart.gids = gid.split(";");
-    plusart.useRandom = plusart.Depth < 2 && plusart.gids.length < 2;
+    plusart.useRandom = plusart.Depth < 2 && plusart.gids.length < 2 && plusart.cids.length == 0;
     plusart.gids.indexOf("me") > -1 && (plusart.gids[plusart.gids.indexOf("me")] = data.me.id);
 
     plusart.friction = parseFloat(params.friction || .9);
@@ -37,27 +46,42 @@ function parseParams(hash) {
 
     plusart.shownode = typeof params.shownode != "undefined" ? (params.shownode == '' ? true : params.shownode) : true;
     plusart.showedge = typeof params.showedge != "undefined" ? (params.showedge == '' ? true : params.showedge) : false;
-    plusart.showdirectedge = true;
+    plusart.showdedge = typeof params.showdedge != "undefined" ? (params.showdedge == '' ? true : params.showdedge) : false;
 
     plusart.isInit = typeof params.reset != "undefined" ? false : plusart.isInit;
 }
 
-d3.select(window).on("hashchange", function() {
-    d3.event.preventDefault();
-    parseParams(document.location.hash);
+function onHash() {
+    if (d3.event)
+        d3.event.preventDefault();
+    parseParams(document.location);
 
-    if (plusart.isInit) {
-        plusart.asyncForEach(plusart.gids, function(id) {
+    function run(gids) {
+        plusart.asyncForEach(gids, function(id) {
             if (typeof data.hash[id] == "undefined") {
                 data.hash[id] = -1;
                 parseUserActivity(data, id, plusart.Count, plusart.Depth);
             }
         });
     }
+
+    if (plusart.isInit) {
+        if (plusart.cids && plusart.cids.length) {
+            plusart.asyncForEach(plusart.cids, function(id) {
+                initCommunityMembers(data, id, function(item) {
+                    run(item.nodeValue.members.map(function(d) { return d.id; }));
+                })
+            });
+        }
+        else
+            run(plusart.gids);
+    }
     else
-        if (forceGraph)
-            forceGraph.restart();
-});
+    if (forceGraph)
+        forceGraph.restart();
+}
+
+d3.select(window).on("hashchange", onHash);
 
 window.data &&
     data.links.forEach(function(d) {
@@ -98,6 +122,7 @@ var w = 0,
 
 var vis;
 var alpha = d3.scale.ordinal();
+var sizeNode = d3.scale.linear().range([0.1, 0.8]);
 
 function callAlpha(d) {
     if (d) {
@@ -108,6 +133,8 @@ function callAlpha(d) {
         alpha.domain(
             arr.sort(d3.ascending)
         );
+
+        sizeNode.domain((sizeNode.domain().concat([d.r])).sort(d3.ascending));
     }
 }
 
@@ -146,6 +173,8 @@ function collide(node) {
     };
 }
 
+plusart.calcCollisions = true;
+
 var forceGraph = d3.layout.force()
     .nodes(data.nodes)
     .links(data.links)
@@ -166,6 +195,9 @@ var forceGraph = d3.layout.force()
     .on("tick.redraw", function() {
         if (vis)
             vis.update();
+
+        if (!plusart.calcCollisions)
+            return;
 
         var nodes = forceGraph.nodes(),
             q = d3.geom.quadtree(nodes),
@@ -271,9 +303,9 @@ function startFlow() {
         },
         makeEdge : function(context, styleEdge, typeEdge) {
             return function(d) {
-                var c = fill(1, d.source);
-                context.strokeStyle = "rgba(" + [c.r, c.g, c.b, fill_opacity(1, d.source)] + ")";
-                context.lineWidth = typeEdge ? d.size : 1;//linew(1, d.target);
+                var c = fill(1, isChecked(d.target) ? d.target : d.source);
+                context.strokeStyle = typeEdge ? "rgba(" + [155, 155, 155, fill_opacity(1, isChecked(d.target) ? d.target : d.source)] + ")" : "rgba(" + [c.r, c.g, c.b, fill_opacity(1, isChecked(d.target) ? d.target : d.source)] + ")";
+                context.lineWidth = typeEdge ? /*d.size*/1 : 1;//linew(1, d.target);
                 context.lineCap = "round";
 
                 var xs = d.source.x,
@@ -289,16 +321,16 @@ function startFlow() {
             }
         },
         renderEdge : function() {
-            if (plusart.showdirectedge || plusart.showedge) {
+            if (plusart.showdedge || plusart.showedge) {
                 var context = this.canvas;
 
                 if (!context)
                     return;
 
-                if (!vis.directMode && plusart.showdirectedge)
+                if (!vis.directMode && plusart.showdedge)
                     d3.values(data.directLinks).forEach(
                         this.makeEdge(context,
-                            "dottedLine",
+                            "solidLine",//"dottedLine",
                             this.typesEdge.direct));
 
                 if (plusart.showedge)
@@ -428,6 +460,7 @@ function startFlow() {
 
     var tooltip = d3.select("#tooltip"),
         tippanel = d3.select("#tippanel"),
+        runpanel = d3.select("#runpanel"),
         tp_content = d3.select("#tippanel-content");
 
 
@@ -740,16 +773,9 @@ function startFlow() {
     }
 
     function firstRequest() {
-        parseParams(document.location.hash);
-
-        plusart.asyncForEach(plusart.gids, function(id) {
-            if (typeof data.hash[id] == "undefined") {
-                data.hash[id] = -1;
-                parseUserActivity(data, id, plusart.Count, plusart.Depth);
-            }
-        });
-
         plusart.isInit = true;
+
+        onHash();
     }
 
     firstRequest();
@@ -759,8 +785,9 @@ function startFlow() {
 
 function closeInterval(timer) {
     if (timer == "dgraphTimer"){
-        remakeSim();
-        window[timer] = undefined;
+        /*remakeSim();
+        window[timer] = undefined;*/
+        run_dgraphTimer();
     }
     else if (timer == "renderTimer") {
         clearTimeout(window[timer]);
@@ -862,37 +889,6 @@ function removeNode(item) {
 }
 
 function toDirectGraph() {
-    /*data.directHash = {};
-
-    plusart.asyncForEach(
-    data.nodes.slice(0)
-            .sort(function(a, b) {
-                return d3.ascending(a.date, b.date);
-            })
-            .sort(function(a, b) {
-                return d3.ascending(a.type, b.type);
-    }), function(item) {
-        var id = (item.nodeValue.hasOwnProperty("actor") ? item.nodeValue.actor : item.nodeValue).id;
-        var index = data.directHash[id];
-        if (typeof index == "undefined") {
-            index = item.index;
-            data.directHash[id] = index;
-            item.linkDegree = 0;
-            item.r = 6;
-        }
-        var parent = data.nodes[index];
-
-        if (item.type == 1) {
-            remakeLink(parent, item);
-            removeNode(item);
-        } else if (parent.index != item.index) {
-            item.r = 4;
-            item.linkDegree = 0;
-
-            remakeLink(parent, item, "source", true);
-            removeNode(item);
-        }
-    });*/
 
     if (!data.directMode) {
         (function(ids){
@@ -903,7 +899,7 @@ function toDirectGraph() {
         })(d3.values(data.directHash).map(function(d) {
             data.nodes[d.index].br = data.nodes[d.index].r;
             data.nodes[d.index].blinkDegree = data.nodes[d.index].linkDegree;
-            data.nodes[d.index].r = d.r;
+            data.nodes[d.index].r = sizeNode(d.r);
             data.nodes[d.index].linkDegree = d.linkDegree;
             return d.index;
         }));
@@ -1017,7 +1013,8 @@ function makeApiCall() {
                             .on("click", clickButton);
                 });
             d3.select("#tippanel").style("display", "block");
-            d3.select("#lpbtn").on("click", function(item) {
+            d3.select("#runpanel").style("display", "block");
+            d3.selectAll("#lpbtn, #tpbtn").on("click", function(item) {
                 item = d3.select(this.parentNode);
                 if (item.classed("open"))
                     item.classed("open", false);

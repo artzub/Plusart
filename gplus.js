@@ -222,3 +222,103 @@ function parseUserActivity(data, id, count, depth, nextPage) {
         pageToken : nextPage
     }).execute(run(data, id, count, depth));
 }
+
+/**
+ * Communities
+ */
+
+function parseUser(ud) {
+    if (!ud)
+        return null;
+
+    return {
+        id: ud[0],
+        displayName: ud[2],
+        url: "https://plus.google.com/" + ud[0],
+        image: {
+            url: "https:" + ud[1] + "?sz=50"
+        }
+    }
+}
+
+function initCommunityMembers(data, id, callback) {
+    if (!data.hasOwnProperty('chash'))
+        data.chash = {};
+
+    if (!data.hasOwnProperty('comNodes'))
+        data.comNodes = [];
+
+    if (data.chash[id] && data.chash[id] >= 0)
+        return;
+
+    data.chash[id] = -1;
+
+    JSONP('http://plusart.artzub.com/gpluscm/?d=' + encodeURIComponent('["' + id + '", null]'),
+        parseCommunity(data, id, callback)
+    )
+}
+
+function parseCommunity(data, id, callback){
+    return function(req) {
+        if (!req || req.hasOwnProperty('error') || !(req instanceof Array)) {
+            console.log(req || { error: "no object"});
+            return;
+        }
+
+        var rm = req[0][0] == "sq.rsmr",
+            com = {nodeValue : {}},
+            gids = rm ? req[0][1][0] : req[0][2][1][1],
+            coms = rm ? req[0][2][0] : req[0][1][0],
+            page = gids[2];
+
+        if (!data.chash.hasOwnProperty(id) || data.chash[id] < 0) {
+            com.nodeValue.id = coms[0];
+            com.nodeValue.name = coms[1][0];
+            com.nodeValue.tags = coms[1][1];
+            com.nodeValue.image = {url : coms[1][3]};
+            com.nodeValue.decs = coms[1][5];
+            com.nodeValue.membersCount = req[0][1][3][0];
+            com.nodeValue.mhash = {};
+            com.nodeValue.members = [];
+            com.nodeValue.curPos = 0;
+
+            data.chash[id] = com.index = data.comNodes.push(com) - 1;
+        }
+        else {
+            com = data.comNodes[data.chash[id]];
+        }
+
+        var i = gids[3].length;
+        com.nodeValue.curPos += i - 1;
+        i = plusart.cmBeginPos <= com.nodeValue.curPos
+            ? (!com.nodeValue.members.length
+                ? plusart.cmBeginPos - (com.nodeValue.curPos - i)
+                : i)
+            : 0;
+
+        while(i-- && plusart.membersCount > com.nodeValue.members.length){
+            var user = parseUser(gids[3][i]);
+
+            if (user && !com.nodeValue.mhash.hasOwnProperty(user.id))
+                com.nodeValue.mhash[user.id] = com.nodeValue.members.push(user) - 1;
+        }
+
+        callback &&
+            callback(com);
+
+        if (com.nodeValue.membersCount
+            && plusart.membersCount > com.nodeValue.members.length
+            && page) {
+            page = gids.slice(0, 3);
+            var c = plusart.membersCount - com.nodeValue.members.length;
+            page[1] = page[1] ? (plusart.cmBeginPos ? plusart.cmBeginPos : (c - 100 >= 0 ? 100 : c)) : page[1];
+            readCommunityMembers(data, id, page, callback);
+        }
+    }
+}
+
+function readCommunityMembers(data, id, page, callback) {
+    JSONP('http://plusart.artzub.com/gpluscm/?r=1&d=' + encodeURIComponent('["' + id + '", ' + JSON.stringify([page]) + ']'),
+        parseCommunity(data, id, callback)
+    );
+}
