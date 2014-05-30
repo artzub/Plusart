@@ -25,19 +25,19 @@
     <meta content="width=device-width, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0, user-scalable=no" name="viewport">
     <meta content="og.png" property="og:image">
 
-    <script type="text/javascript" src="d3.v2.js"></script>
+    <script type="text/javascript" src="js/d3.v2.js"></script>
     <!--script type="text/javascript" src="protovis.js"></script-->
-    <script type="text/javascript" src="global.js"></script>
-    <script type="text/javascript" src="plusart.js"></script>
-    <script type="text/javascript" src="conf.js"></script>
-    <script type="text/javascript" src="net.js"></script>
-    <script type="text/javascript" src="storage.js"></script>
-    <script type="text/javascript" src="oauth.js"></script>
-    <script type="text/javascript" src="gplus.js"></script>
-    <script type="text/javascript" src="htmlhelper.js"></script>
-    <script type="text/javascript" src="main.js"></script>
+    <script type="text/javascript" src="js/global.js"></script>
+    <script type="text/javascript" src="js/plusart.js"></script>
+    <script type="text/javascript" src="js/conf.js"></script>
+    <script type="text/javascript" src="js/net.js"></script>
+    <script type="text/javascript" src="js/storage.js"></script>
+    <script type="text/javascript" src="js/oauth.js"></script>
+    <script type="text/javascript" src="js/gplus.js"></script>
+    <script type="text/javascript" src="js/htmlhelper.js"></script>
+    <script type="text/javascript" src="js/main.js"></script>
     <!--script type="text/javascript" src="http://closure-compiler.appspot.com/code/jscd898bdefdda7ec40304431ba00213f93/default.js"></script-->
-    <link type="text/css" href="style.css" rel="stylesheet">
+    <link type="text/css" href="css/style.css" rel="stylesheet">
 </head>
 <body>
     <div id="about" style="display: none; background: rgba(240, 240, 240, 0.5); position: absolute; top:0; left: 0; z-index: 1000; width: 100%; height: 100%; overflow: hidden;">
@@ -84,12 +84,12 @@
                     <li>
                         <div>
                             <div class="row">
-                                <label for="gids">Users id</label>
-                                <input type="text" id="gids">
+                                <input type="text" id="gids" placeholder="Profile ID" style="float: left; width: 82%">
+                                <button id="runBtn" class="btn rowBnt">Show</button>
                             </div>
                             <div class="row">
                                 <div class="hint">
-                                    List of ids of users (through '<strong>;</strong>') from their profile url https://plus.google.com/u/0/<strong>ID</strong>/posts
+                                    List of ids of users (through '<strong>;</strong>') from their profile url https://plus.google.com/<strong>ProfileID</strong>/posts
                                 </div>
                             </div>
                         </div>

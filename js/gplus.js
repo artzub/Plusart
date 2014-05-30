@@ -2,16 +2,21 @@ function urlListActivities(id) {
     return conf.BASE_REQUEST_URI + 'people/' + (id || 'me') + '/activities/public?maxResults=10'
 }
 
+function initEmptyUser(/*id*/) {
+    return {index : /*id > -1 ? id :*/ -1};
+}
+
 function addDirectNodeData(data, id, index) {
-    return (data.directHash = data.directHash || {}) && data.directHash[id]
-        || (data.directHash[id] = {
-            index : typeof index != "undefined" ? index : -1,
-            id : id,
-            out : 0,
-            in : 0,
-            r : MIN_SIZE_NODE + 3,
-            linkDegree : MIN_LD_NODE
-        })
+    return (data.directHash = data.directHash || {})
+        && (data.directHash[id]
+            || (data.directHash[id] = {
+                index : index > -1 ? index : -1,
+                id : id,
+                out : 0,
+                in : 0,
+                r : MIN_SIZE_NODE + 3,
+                linkDegree : MIN_LD_NODE
+            }))
         ;
 }
 
@@ -35,8 +40,7 @@ function addDirectLink(data, parent, child) {
 }
 
 function addChildNode(data, parent, type, value, random) {
-    var i,
-        dp = type == 1 ? new Date(value.published).getTime() : parent.date,
+    var dp = type == 1 ? new Date(value.published).getTime() : parent.date,
         du = type == 1 ? new Date(value.updated).getTime() : parent.date;
 
     var id = (value.hasOwnProperty("actor") ? value.actor : value).id;
@@ -59,18 +63,20 @@ function addChildNode(data, parent, type, value, random) {
     if (type != 1) {
         var dnc = addDirectNodeData(data, id, child.index),
             idp = parent.nodeValue.actor.id,
-            dnp, chc, chp;
+            inid = data.hash.hasOwnProperty(id) ? data.hash[id].index : -1,
+            inidp = data.hash.hasOwnProperty(idp) ? data.hash[idp].index : -1,
+            dnp, chc, chp, dl;
 
-        if (data.hash.hasOwnProperty(id) && data.hash[id] > 0) {
-            if (chc = dnc.index != data.hash[id])
-                dnc.index = data.hash[id];
+        if (inid > 0) {
+            if (chc = (dnc.index != inid && (dnc.index < 0 || data.nodes[inid].type < data.nodes[dnc.index].type)))
+                dnc.index = inid;
             incSize(data.nodes[dnc.index]);
         }
 
-        dnp = addDirectNodeData(data, idp, data.hash[idp]);
-        if (data.hash.hasOwnProperty(idp) && data.hash[idp] > 0
-            && (chp = data.hash[idp] != dnp.index))
-            dnp.index = data.hash[idp];
+        dnp = addDirectNodeData(data, idp, inidp);
+        if (inidp > 0
+            && (chp = (inidp != dnp.index && (dnp.index < 0 || data.nodes[inidp].type < data.nodes[dnp.index].type))))
+            dnp.index = inidp;
 
         incSize(dnp);
         incSize(dnc);
@@ -108,6 +114,12 @@ function addChildNode(data, parent, type, value, random) {
     return child.index;
 }
 
+function getDataFromUserId(data, id, count, depth) {
+    if (!data.hash.hasOwnProperty(id)) {
+        data.hash[id] = initEmptyUser();
+        parseUserActivity(data, id, count, depth);
+    }
+}
 function parsePostActivity(data, parent, depth, type) {
     function run(data, parent, depth, type) {
         depth = depth || 0;
@@ -124,10 +136,8 @@ function parsePostActivity(data, parent, depth, type) {
                           ? 2 : type == "plusoners"
                                       ? 3 : type == "resharers" ? 4 : 5,
                     item);
-                if (depth > 0 && !data.hash.hasOwnProperty(id)) {
-                    data.hash[id] = -1;
-                    parseUserActivity(data, id, plusart.Count, depth);
-                }
+                if (depth > 0)
+                    getDataFromUserId(data, id, plusart.Count, depth);
             });
         }
     }
@@ -155,7 +165,6 @@ function parsePostActivity(data, parent, depth, type) {
 }
 
 function parseUserActivity(data, id, count, depth, nextPage) {
-    window.ttt = window.ttt || {};
     function run(data, id, count, depth) {
         depth = depth || 0;
         return function(activities) {
@@ -164,13 +173,13 @@ function parseUserActivity(data, id, count, depth, nextPage) {
                 return;
             }
 
-            count = typeof count === "undefined" ? activities.items.length : count;
+            count = count > 0 ? activities.items.length : count;
             plusart.asyncForEach(activities.items, function(item) {
                 var dp = new Date(item.published).getTime(),
                     du = new Date(item.updated).getTime(),
-                    parent,
-                    i = data.hash[item.actor.id];
-                if (typeof i == "undefined" || i == -1) {
+                    i,
+                    parent = data.hash[item.actor.id];
+                if (typeof parent == "undefined" || parent.index == -1) {
                     parent = {
                         x : w/2 * Math.random() * (Math.round((Math.random() * 2) % 2) ? -1 : 1),
                         y : h/2 * Math.random() * (Math.round((Math.random() * 2) % 2) ? -1 : 1),
@@ -181,21 +190,18 @@ function parseUserActivity(data, id, count, depth, nextPage) {
                         date : d3.max([dp, du]),
                         index : 0
                     };
-
-                    parent.index = data.hash[item.actor.id] = data.nodes.push(parent) - 1;
+                    data.hash[item.actor.id] = parent;
+                    parent.index = data.nodes.push(parent) - 1;
                     addDirectNodeData(data, item.actor.id, parent.index);
 
                     if (plusart.redraw)
                         plusart.redraw(data.nodes[parent.index]);
                 }
-                else {
-                    parent = data.nodes[i];
-                }
 
                 i = addChildNode(data, parent, 1, item, plusart.useRandom);
 
                 if (item.object) {
-                    ["replies", "plusoners", "resharers"].forEach(function(l, j) {
+                    ["replies", "plusoners", "resharers"].forEach(function(l) {
                         if (item.object.hasOwnProperty(l)
                         &&  item.object[l].totalItems) {
                             parsePostActivity(

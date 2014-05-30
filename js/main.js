@@ -58,10 +58,7 @@ function onHash() {
 
     function run(gids) {
         plusart.asyncForEach(gids, function(id) {
-            if (typeof data.hash[id] == "undefined") {
-                data.hash[id] = -1;
-                parseUserActivity(data, id, plusart.Count, plusart.Depth);
-            }
+            getDataFromUserId(data, id, plusart.Count, plusart.Depth);
         });
     }
 
@@ -969,18 +966,6 @@ function makeApiCall() {
                 .call(function(div) {
                     div.append("img")
                         .attr("src", resp.image.url);
-                    /*div.append("ul")
-                        .call(function(ul) {
-                            ul.append("li")
-                                .append("span")
-                                .append("a")
-                                .attr("href", resp.url)
-                                .attr("target", "blank")
-                                .text(resp.displayName);
-                            ul.append("li").append("a")
-                                .attr("href", "javascript: void(0)")
-                                .text("logout");
-                        })*/
                     div.append("div")
                         .attr("class", "data")
                         .text(resp.displayName);
@@ -1021,6 +1006,18 @@ function makeApiCall() {
                 else
                     item.classed("open", true);
             });
+            d3.select("#runBtn").on('click', function() {
+                var gids = d3.select("#gids").property("value").split(';');
+
+                plusart.gids.forEach(function(d) {
+                    if (gids.indexOf(d) < 0)
+                        gids.push(d);
+                });
+
+                location.hash = "#" + [
+                    "gids=" + gids.join(';')
+                ].join("&");
+            })
             startFlow();
         });
     });

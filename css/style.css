@@ -984,7 +984,7 @@ a.photo img {
 
 .hint {
     padding: 5px;
-    margin: 1px;
+    margin: 1px 0;
     border: 1px dotted #919191;
     border-left: 2px solid #919191;
     background-color: #EEF1F1;
@@ -1030,6 +1030,13 @@ input[type=number]:focus {
     box-shadow: 0px 0px 3px rgba(0, 0, 0, 0.3);
 }
 
+.rowBnt {
+    display: block;
+    width: 16%;
+    float: right;
+    padding: 5px;
+    margin: 0;
+}
 
     /*background: #f9f9f9; *//* Old browsers */
     /*background: -moz-linear-gradient(top,  #f9f9f9 0%, #e5e5e5 100%); *//* FF3.6+ */
