@@ -28,7 +28,6 @@ plusart.asyncForEach = function(items, fn, time) {
             fn(workArr.shift(), workArr);
         if (workArr.length > 0)
             setTimeout(arguments.callee, time || 1);
-
     }, time || 1);
 };
 
@@ -38,10 +37,10 @@ plusart.redrawInit = function (func) {
 
 plusart.Storage = (function Storage(webstorage) {
     webstorage.__proto__.get = function(key) {
-        return JSON.parse(this.getItem(key));
+        return JSON.parse(webstorage.getItem(key));
     };
     webstorage.__proto__.set = function(key, value) {
-        this.setItem(key, JSON.stringify(value));
+        webstorage.setItem(key, JSON.stringify(value));
     };
     return webstorage;
 })(window.localStorage);

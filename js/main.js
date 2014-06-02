@@ -94,18 +94,12 @@ window.data = window.data || {
     directLinks: {}
 };
 
-data.getIdByIndex = function(i) {
-    var d;
-    return i > -1 && data.nodes.length > i && (d = this.nodes[i]) ? (d.nodeValue.hasOwnProperty("actor")
-        ? d.nodeValue.actor
-        : d.nodeValue
-    ).id : null;
+data.getIdByIndex = function(d) {
+    return d ? (d.nodeValue.hasOwnProperty("actor") ? d.nodeValue.actor : d.nodeValue).id : null;
 };
 
 data.getSelected = function() {
-    return data.selected > -1 && data.nodes.length > data.selected
-        ? data.nodes[data.selected]
-        : null;
+    return data.selected;
 };
 
 data.hash = data.hash || {};
@@ -190,8 +184,8 @@ var forceGraph = d3.layout.force()
     })
     .linkStrength(1.2)
     .on("tick.redraw", function() {
-        if (vis)
-            vis.update();
+        /*if (vis)
+            vis.update();*/
 
         if (!plusart.calcCollisions)
             return;
@@ -221,7 +215,7 @@ forceGraph.restart = function() {
         d3.select("span#calcTimer").each(clickButton);
     }
     else {
-        vis.update();
+        //vis.update();
     }
 };
 
@@ -267,6 +261,35 @@ function startFlow() {
         d3.rgb("#FF3F46")
     ]).domain([0, 4]);
 
+    var hashCircleByColor = d3.map({});
+
+    function byColor(a, b) {
+        return d3.ascending(fill(1, a), fill(1, b))
+    }
+
+    function byOpacity(a, b) {
+        return fill_opacity(1, a) - fill_opacity(1, b);
+    }
+
+    function makeCircle(color, stroke, radius, lw) {
+        var tempCanvas = document.createElement('canvas')
+            , ctx = tempCanvas.getContext('2d')
+            ;
+
+        tempCanvas.width = tempCanvas.height = radius * 2;
+
+        ctx.beginPath();
+        ctx.fillStyle = color;
+        ctx.strokeStyle = stroke;
+        ctx.lineWidth = lw;
+        ctx.arc(radius, radius, radius, 0, PI_CIRCLE, true);
+        color !== "none" && ctx.fill();
+        stroke !== "none" && ctx.stroke();
+
+        return tempCanvas;
+    }
+
+
     vis = {
         transform : {
             translate : [w/2, h/2],
@@ -300,26 +323,31 @@ function startFlow() {
         },
         makeEdge : function(context, styleEdge, typeEdge) {
             return function(d) {
-                var c = fill(1, isChecked(d.target) ? d.target : d.source);
-                context.strokeStyle = typeEdge ? "rgba(" + [155, 155, 155, fill_opacity(1, isChecked(d.target) ? d.target : d.source)] + ")" : "rgba(" + [c.r, c.g, c.b, fill_opacity(1, isChecked(d.target) ? d.target : d.source)] + ")";
+                var s = d.source
+                    , t = d.target
+                    , sel = isChecked(t) ? t : s
+                    , c = fill(1, sel)
+                    , opacity = fill_opacity(1, sel)
+                    ;
+                context.strokeStyle = typeEdge ? "rgba(" + [155, 155, 155, opacity] + ")" : "rgba(" + [c.r, c.g, c.b, opacity] + ")";
                 context.lineWidth = typeEdge ? /*d.size*/1 : 1;//linew(1, d.target);
                 context.lineCap = "round";
 
-                var xs = d.source.x,
-                    ys = d.source.y,
-                    xt = d.target.x,
-                    yt = d.target.y;
+                var xs = s.x,
+                    ys = s.y,
+                    xt = t.x,
+                    yt = t.y;
 
-                if (vis.checkVisible(d.source) || vis.checkVisible(d.target)) {
+                if (vis.checkVisible(s) || vis.checkVisible(t)) {
                     context.beginPath();
                     context[styleEdge](xs, ys, xt, yt);
                     context.stroke();
                 }
             }
         },
-        renderEdge : function() {
+        renderEdge : function(ctx) {
             if (plusart.showdedge || plusart.showedge) {
-                var context = this.canvas;
+                var context = ctx;
 
                 if (!context)
                     return;
@@ -337,17 +365,24 @@ function startFlow() {
                             this.typesEdge.common));
             }
         },
-        renderNode : function() {
+        renderNode : function(ctx) {
             if (typeof plusart.shownode != "undefined") {
-                var context = this.canvas;
+                var context = ctx;
 
                 if (!context)
                     return;
 
-                var nodes = forceGraph.nodes(),
-                    i = nodes.length,
-                    d,
-                    c
+                var nodes = forceGraph.nodes()
+                    , i = nodes.length
+                    , d
+                    , c
+                    , img
+                    , imgKey
+                    , r
+                    , r2
+                    , ch
+                    , sc
+                    , tr
                     ;
 
                 while(--i > -1) {
@@ -364,6 +399,7 @@ function startFlow() {
                             context.fill();
                             context.stroke();
                         }
+
                         for(var ind = 1; ind > -1; --ind) {
                             context.beginPath();
                             c = fill(ind, d);
@@ -374,6 +410,43 @@ function startFlow() {
                             context.fill();
                             context.stroke();
                         }
+
+                        /*ch = isChecked(d);
+                        c = fill(1, d);
+                        sc = stroke(1, d);
+                        r = (radius(1, d) + (!d.overed ? 0 : radius(1, d) * 0.2)) * 2;
+                        r2 = r / 2;
+                        tr = 256;
+
+                        context.globalAlpha = 100 * fill_opacity(1, d);
+                        imgKey = c.toString() + '_none_' + ch;
+                        img = hashCircleByColor.get(imgKey);
+                        if (!img) {
+                            img = makeCircle(c, 'none', tr, 0);
+                            hashCircleByColor.set(imgKey, img);
+                        }
+                        context.drawImage(img,  d.x - r2, d.y - r2, r, r);
+
+                        context.globalAlpha = 100;
+                        imgKey = 'none_' + sc.toString() + '_' + ch;
+                        img = hashCircleByColor.get(imgKey);
+                        if (!img) {
+                            img = makeCircle('none', sc, tr, lineWidth(1, tr, ch));
+                            hashCircleByColor.set(imgKey, img);
+                        }
+                        context.drawImage(img, d.x - r2, d.y - r2, r, r);
+
+                        c = fill(0, d);
+                        r = radius(0, d) + (!d.overed ? 0 : radius(0, d) * 0.2);
+                        r2 = r / 2;
+
+                        imgKey = c.toString() + '_none_' + ch;
+                        img = hashCircleByColor.get(imgKey);
+                        if (!img) {
+                            img = makeCircle(c, 'none', tr, 0);
+                            hashCircleByColor.set(imgKey, img);
+                        }
+                        context.drawImage(img, d.x - r2, d.y - r2, r, r);*/
                     }
                 }
             }
@@ -382,28 +455,40 @@ function startFlow() {
             //vis.zoom();
             vis.valide = false;
         },
-        render : function() {
-            this.renderEdge();
-            this.renderNode();
+        render : function(ctx) {
+            this.bufCanvas = this.bufCanvas || document.createElement('canvas');
+            this.bufCtx = this.bufCtx || this.bufCanvas.getContext('2d');
+
+            this.bufCanvas.width = w;
+            this.bufCanvas.height = h;
+
+            this.bufCtx.save();
+
+            if (vis.event && !vis.dragOn) {
+                if (vis.event.hasOwnProperty("translate"))
+                    this.transform.translate = vis.event.translate.slice(0);
+                if (vis.event.hasOwnProperty("scale"))
+                    this.transform.scale = vis.event.scale;
+                vis.event = undefined;
+            }
+
+            this.bufCtx.translate(this.transform.translate[0], this.transform.translate[1]);
+            this.bufCtx.scale(this.transform.scale, this.transform.scale);
+
+            this.renderEdge(this.bufCtx);
+            this.renderNode(this.bufCtx);
+
+            this.bufCtx.restore();
+
+            return this.bufCanvas;
         },
         zoom : function() {
             if (this.canvas) {
+                this.canvas.save();
                 this.canvas.clearRect(0, 0, w, h);
 
-                this.canvas.save();
+                this.canvas.drawImage(this.render(), 0, 0, w, h);
 
-                if (vis.event && !vis.dragOn) {
-                    if (vis.event.hasOwnProperty("translate"))
-                        this.transform.translate = vis.event.translate.slice(0);
-                    if (vis.event.hasOwnProperty("scale"))
-                        this.transform.scale = vis.event.scale;
-                    vis.event = undefined;
-                }
-
-                this.canvas.translate(this.transform.translate[0], this.transform.translate[1]);
-                this.canvas.scale(this.transform.scale, this.transform.scale);
-
-                this.render();
                 this.canvas.restore();
             }
         },
@@ -537,7 +622,7 @@ function startFlow() {
                 d = vis.getNodeFromPos(d3.mouse(item));
 
             if (d) {
-                data.selected = d.index;
+                data.selected = d;
                 d.fixed |= 4;
                 d3.select("body").style("cursor", "pointer");
                 forceGraph.restart();
@@ -720,9 +805,8 @@ function startFlow() {
     resizeWindow()();
 
     function fill(i, d) {
-        var bc = isChecked(d) ? colors(d.type) : (data.selected > -1 ? d3.rgb("#666") : colors(d.type));
-        return i ? bc
-                 : colors(d.type)/*.darker().darker()*/.darker().darker();
+        var bc = isChecked(d) ? colors(d.type) : (data.selected ? d3.rgb("#666") : colors(d.type));
+        return i ? bc : colors(d.type).darker().darker();
     }
 
     function fill_opacity(i, d) {
@@ -731,32 +815,28 @@ function startFlow() {
 
     function isChecked(d) {
         return d.clicked
-                || d.index == data.selected
+                || d === data.selected
                 || (
                 d.type != 1
-                        && data.selected > -1
+                        && data.selected
                         && (
-                        d.nodeValue.hasOwnProperty("actor")
+                            d.nodeValue.hasOwnProperty("actor")
                                 ? d.nodeValue.actor
                                 : d.nodeValue
-                        ).id == data.getIdByIndex(data.selected)
+                        ).id === data.getIdByIndex(data.selected)
                 );
     }
 
     function linew(i, d) {
-        var r = radiuses(d.r);
-        return i
-               ? r
-               * (
-                    isChecked(d)
-                    ? 0.06
-                    : 0.02
-                 )
-               : 0;
+        return lineWidth(i, radiuses(d.r), isChecked(d));
+    }
+
+    function lineWidth(i, r, ch) {
+        return i ? r * (ch ? 0.06 : 0.02) : 0;
     }
 
     function stroke(i, d) {
-        return !isChecked(d) ? "#666" : colors(d.type)/*.darker().darker()*/.darker().darker();
+        return !isChecked(d) ? "#666" : colors(d.type).darker().darker();
     }
 
     function title(d) {
@@ -806,12 +886,13 @@ function closeInterval(timer) {
 function run_renderTimer() {
     closeInterval("renderTimer");
     renderTimer = true;
-    (function animloop(){
+    (function loop(){
         if (renderTimer)
-            requestAnimationFrame(animloop);
+            requestAnimationFrame(loop);
         if (!vis.valide) {
-            vis.zoom();
             vis.valide = true;
+            vis.zoom();
+            vis.update();
         }
     })();
 }
@@ -822,99 +903,34 @@ function run_calcTimer() {
     forceGraph.start();
 }
 
-function remakeSim() {
-
-}
-
-function remakeLink(parent, old_parent, prop, decRevers) {
-    prop = prop || "target";
-    forceGraph.links().filter(function(d) {
-        return d[prop + "Index"] == old_parent.index;
-    }).forEach(function(d) {
-        var item = d[prop == "target" ? "source" : "target"],
-            id = (item.nodeValue.hasOwnProperty("actor") ? item.nodeValue.actor : item.nodeValue).id,
-            index = data.directHash[id],
-            pnt = parent;
-        if (typeof index != "undefined") {
-            pnt = data.nodes[index];
-            var pref = prop == "target"
-                    ? index + "_" + parent.index
-                    : parent.index + "_" + index;
-            if(!data.directHash[pref]) {
-                data.directHash[pref] = -1;
-                var obj = {};
-                obj[prop] = obj[prop + "Node"] = parent;
-                obj[prop + "Index"] = parent.index;
-                obj[prop == "target" ? "source" : "target"] =
-                    obj[prop == "target" ? "sourceNode" : "targetNode"] = pnt;
-                obj[prop == "target" ? "sourceIndex" : "targetIndex"] = index;
-                data.directHash[pref] = forceGraph.links().push(obj) - 1;
-                if (calcTimer)
-                    forceGraph.start();
-                else
-                    forceGraph.restart();
-            }
-            incSize(pnt);
-        }
-        decSize(decRevers ? item : d[prop]);
-        d[prop] = d[prop + "Node"] = parent;
-        d[prop + "Index"] = parent.index;
-        incSize(parent);
-    });
-    deleteLinks(old_parent.index, prop == "source" ? "target" : "source");
-}
-
-function deleteLinks(parent, prop) {
-    forceGraph.links().filter(function (d, i) {
-            return d[prop + "Index"] == parent && ((d.i = i) || true);
-        })
-        .map(function (d) {
-            decSize(d[prop == "source" ? "target" : "source"]);
-            return d;
-        })
-        .forEach(function (d) {
-            forceGraph.links().splice(d.i, 1);
-            if (calcTimer)
-                forceGraph.start();
-            else
-                forceGraph.restart();
-        });
-}
-
-function removeNode(item) {
-    item.visible = false;
-}
-
 function toDirectGraph() {
 
     if (!data.directMode) {
         (function(ids){
-            //plusart.asyncForEach(
             forceGraph.nodes().forEach( function(d) {
-                d.visible = ids.indexOf(d.index) > -1;
+                d.visible = ids.indexOf(d) > -1;
             });
         })(d3.values(data.directHash).map(function(d) {
-            data.nodes[d.index].br = data.nodes[d.index].r;
-            data.nodes[d.index].blinkDegree = data.nodes[d.index].linkDegree;
-            data.nodes[d.index].r = sizeNode(d.r);
-            data.nodes[d.index].linkDegree = d.linkDegree;
-            return d.index;
+            d.node.br = d.node.r;
+            d.node.blinkDegree = d.node.linkDegree;
+            d.node.r = sizeNode(d.r);
+            d.node.linkDegree = d.linkDegree;
+            return d.node;
         }));
-        forceGraph.links(d3.values(data.directLinks));
+        forceGraph.links(d3.values(data.directLinks).map(function(k) { return {source : k.source.node, target : k.target.node}; }));
         data.directMode = vis.directMode = true;
     }
     else {
         data.directMode = vis.directMode = false;
         forceGraph.links(data.links);
         (function(ids){
-            //plusart.asyncForEach
             forceGraph.nodes().forEach(function(d) {
                 d.visible = true;
             });
         })(d3.values(data.directHash).map(function(d) {
-            data.nodes[d.index].r = data.nodes[d.index].br;
-            data.nodes[d.index].linkDegree = data.nodes[d.index].blinkDegree;
-            return d.index;
+            d.node.r = d.node.br;
+            d.node.linkDegree = d.node.blinkDegree;
+            return d.node;
         }));
     }
     if (calcTimer)
@@ -1017,7 +1033,7 @@ function makeApiCall() {
                 location.hash = "#" + [
                     "gids=" + gids.join(';')
                 ].join("&");
-            })
+            });
             startFlow();
         });
     });

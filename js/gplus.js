@@ -1,21 +1,17 @@
-function urlListActivities(id) {
-    return conf.BASE_REQUEST_URI + 'people/' + (id || 'me') + '/activities/public?maxResults=10'
+function initEmptyUser() {
+    return {};
 }
 
-function initEmptyUser(/*id*/) {
-    return {index : /*id > -1 ? id :*/ -1};
-}
-
-function addDirectNodeData(data, id, index) {
+function addDirectNodeData(data, id, node) {
     return (data.directHash = data.directHash || {})
         && (data.directHash[id]
             || (data.directHash[id] = {
-                index : index > -1 ? index : -1,
                 id : id,
                 out : 0,
                 in : 0,
                 r : MIN_SIZE_NODE + 3,
-                linkDegree : MIN_LD_NODE
+                linkDegree : MIN_LD_NODE,
+                node : node
             }))
         ;
 }
@@ -24,15 +20,11 @@ function addDirectLink(data, parent, child) {
     data.directLinks = data.directLinks || {};
     var item = parent.id + "_" + child.id;
     item = data.directLinks[item] || (data.directLinks[item] = {
-        source: data.nodes[child.index],
-        sourceIndex : child.index,
-        sourceNode: child,
-        target: data.nodes[parent.index],
-        targetIndex : parent.index,
-        targetNode: parent,
+        source: child,
+        target: parent,
         size : 0
     });
-    if (item.size++ == 0) {
+    if (item.size++ === 0) {
         child.out++;
         parent.in++;
     }
@@ -52,48 +44,41 @@ function addChildNode(data, parent, type, value, random) {
         linkDegree: MIN_LD_NODE,
         type: type,
         nodeValue: value,
-        date : d3.max([dp, du]),
-        index: 0
+        date : d3.max([dp, du])
     };
+    data.nodes.push(child);
 
-    child.index = data.nodes.push(child) - 1;
     if (plusart.redraw)
         plusart.redraw(child);
 
     if (type != 1) {
-        var dnc = addDirectNodeData(data, id, child.index),
+        var dnc = addDirectNodeData(data, id, child),
             idp = parent.nodeValue.actor.id,
-            inid = data.hash.hasOwnProperty(id) ? data.hash[id].index : -1,
-            inidp = data.hash.hasOwnProperty(idp) ? data.hash[idp].index : -1,
+            inid = data.hash.hasOwnProperty(id) ? data.hash[id] : -1,
+            inidp = data.hash.hasOwnProperty(idp) ? data.hash[idp] : -1,
             dnp, chc, chp, dl;
 
-        if (inid > 0) {
-            if (chc = (dnc.index != inid && (dnc.index < 0 || data.nodes[inid].type < data.nodes[dnc.index].type)))
-                dnc.index = inid;
-            incSize(data.nodes[dnc.index]);
+        if (inid !== -1) {
+            if (chc = (dnc !== inid && (!dnc.id || inid.type < dnc.type)))
+                dnc = inid;
+            incSize(dnc);
         }
 
         dnp = addDirectNodeData(data, idp, inidp);
-        if (inidp > 0
-            && (chp = (inidp != dnp.index && (dnp.index < 0 || data.nodes[inidp].type < data.nodes[dnp.index].type))))
-            dnp.index = inidp;
+        if (inidp !== -1
+            && (chp = (inidp !== dnp && (!dnp.id || inidp.type < dnp.type))))
+            dnp = inidp;
 
         incSize(dnp);
         incSize(dnc);
 
         dl = addDirectLink(data, dnp, dnc);
 
-        if (chc) {
-            dl.source = data.nodes[dnc.index];
-            dl.sourceIndex = dnc.index;
-            dl.sourceNode = dnc;
-        }
+        if (chc)
+            dl.source = dnc;
 
-        if (chp) {
-            dl.target = data.nodes[dnp.index];
-            dl.targetIndex = dnp.index;
-            dl.targetNode = dnp;
-        }
+        if (chp)
+            dl.target = dnp;
     }
 
     incSize(parent);
@@ -101,17 +86,13 @@ function addChildNode(data, parent, type, value, random) {
 
     data.links.push({
         source: child,
-        sourceIndex : child.index,
-        sourceNode: child,
         target: parent,
-        targetIndex : parent.index,
-        targetNode: parent,
         size : 1
     });
     if (plusart.redraw)
         plusart.redraw();
 
-    return child.index;
+    return child;
 }
 
 function getDataFromUserId(data, id, count, depth) {
@@ -179,7 +160,7 @@ function parseUserActivity(data, id, count, depth, nextPage) {
                     du = new Date(item.updated).getTime(),
                     i,
                     parent = data.hash[item.actor.id];
-                if (typeof parent == "undefined" || parent.index == -1) {
+                if (typeof parent == "undefined" || !parent.nodeValue) {
                     parent = {
                         x : w/2 * Math.random() * (Math.round((Math.random() * 2) % 2) ? -1 : 1),
                         y : h/2 * Math.random() * (Math.round((Math.random() * 2) % 2) ? -1 : 1),
@@ -187,15 +168,14 @@ function parseUserActivity(data, id, count, depth, nextPage) {
                         linkDegree : 0,
                         type : 0,
                         nodeValue : item.actor,
-                        date : d3.max([dp, du]),
-                        index : 0
+                        date : d3.max([dp, du])
                     };
                     data.hash[item.actor.id] = parent;
-                    parent.index = data.nodes.push(parent) - 1;
-                    addDirectNodeData(data, item.actor.id, parent.index);
+                    data.nodes.push(parent);
+                    addDirectNodeData(data, item.actor.id, parent);
 
                     if (plusart.redraw)
-                        plusart.redraw(data.nodes[parent.index]);
+                        plusart.redraw(parent);
                 }
 
                 i = addChildNode(data, parent, 1, item, plusart.useRandom);
@@ -206,7 +186,7 @@ function parseUserActivity(data, id, count, depth, nextPage) {
                         &&  item.object[l].totalItems) {
                             parsePostActivity(
                                 data,
-                                data.nodes[i],
+                                i,
                                 depth - 1,
                                 l
                             );
